@@ -1,0 +1,24 @@
+{
+  "name": "coinid-private",
+  "version": "1.0.0",
+  "description": "COINiD Private - For signing stuff with mnemonic",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wlc-/coinid-private.git"
+  },
+  "author": "wlc",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/wlc-/coinid-private/issues"
+  },
+  "homepage": "https://github.com/wlc-/coinid-private#readme",
+  "dependencies": {
+    "bip39": "^2.4.0",
+    "bitcoinjs-lib": "^3.3.1",
+    "bitcoinjs-message": "^2.0.0"
+  }
+}
