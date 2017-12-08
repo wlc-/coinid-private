@@ -1,6 +1,6 @@
 {
   "name": "coinid-private",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "COINiD Private - For signing stuff with mnemonic",
   "main": "index.js",
   "scripts": {
@@ -18,7 +18,7 @@
   "homepage": "https://github.com/wlc-/coinid-private#readme",
   "dependencies": {
     "bip39": "^2.4.0",
-    "bitcoinjs-lib": "^3.3.1",
+    "bitcoinjs-lib": "git+https://github.com/wlc-/bitcoinjs-lib.git",
     "bitcoinjs-message": "^2.0.0"
   }
 }
