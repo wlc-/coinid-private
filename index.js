@@ -81,11 +81,13 @@ var createPublicKeysFromDerivationPaths = function(derivationPathArr, network, m
  *
  */
 var infoFromCoinId = function(coinIdData) {
+  coinIdData = coinIdData || '';
   // parses addressData fields in coinIdData
   coinIdData = coinIdData.toLowerCase();
 
-  var type = coinIdData.split('/')[0];
-  coinIdData = coinIdData.split('/')[1];
+  var splitData = coinIdData.split('/');
+  var type = splitData[0] || '';
+  coinIdData = splitData[1] || '';
 
   var parseOutputIndexData = inputData => !inputData ? [] : inputData.split('+').map(Number);
   var normaliseCoinIdDataDerivation = e => 'm/'+e.replace(new RegExp('\\*', 'g'), '/').replace(new RegExp('\\-', 'g'), '\'');
@@ -205,6 +207,7 @@ module.exports = function(coinIdData) {
     // general
     getInfo: () => info,
     getAddressFromDerivationPath: (derivationPath, mnemonic) => getAddressFromDerivationPath(info.derivationPath, info.network, mnemonic),
+    generateMnemonic: () => generateMnemonic(),
 
     // pub
     getPublicKey: (mnemonic) => createPublicKeysFromDerivationPaths(info.derivationPathArr, info.network, mnemonic),
