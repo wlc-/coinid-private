@@ -121,7 +121,7 @@ var infoFromCoinId = function(coinIdData) {
     if(type == 'msg') {
       return Object.assign(head, {
         derivationPath: normaliseCoinIdDataDerivation(arr[1]),
-        message: arr[2],
+        message: decodeURIComponent(arr[2]),
       });
     }
 
