@@ -66,6 +66,17 @@ var createPublicKeysFromDerivationPaths = function(derivationPathArr, network, m
   }));
 }
 
+var reverseQrFriendlyDerivationPath = function(qrFriendlyDerivationPath) {
+  return 'm/'+qrFriendlyDerivationPath.replace(new RegExp('\\*', 'g'), '/').replace(new RegExp('\\-', 'g'), '\'');
+}
+
+var getQrFriendlyDerivationPath = function(derivationPath) {
+  return derivationPath
+  .replace(new RegExp('^m\/', 'g'), '')
+  .replace(new RegExp('\/', 'g'), '*')
+  .replace(new RegExp('\'', 'g'), '-');
+}
+
 /** - coinData innehåller fee också då vi inte kan ta reda på detta offline annars.. kanske unsafe... om coinid är online så bör vi kanske hämta fee från blockchain
  *                                       [inputDerivationData]                                        [changeOutputIndexData]
  * Structure of signTx = [type]/[ticker].[derivationPath+derivationPath+derivationPath].[unsignedHex].[index+index+index].[fee]
@@ -90,8 +101,7 @@ var infoFromCoinId = function(coinIdData) {
   coinIdData = splitData[1] || '';
 
   var parseOutputIndexData = inputData => !inputData ? [] : inputData.split('+').map(Number);
-  var normaliseCoinIdDataDerivation = e => 'm/'+e.replace(new RegExp('\\*', 'g'), '/').replace(new RegExp('\\-', 'g'), '\'');
-  var parseInputDerivationData = inputData => !inputData ? [] : inputData.split('+').map(normaliseCoinIdDataDerivation);
+  var parseInputDerivationData = inputData => !inputData ? [] : inputData.split('+').map(reverseQrFriendlyDerivationPath);
 
   var parse = cid => {
     var arr = cid.split('.');
@@ -120,7 +130,7 @@ var infoFromCoinId = function(coinIdData) {
 
     if(type == 'msg') {
       return Object.assign(head, {
-        derivationPath: normaliseCoinIdDataDerivation(arr[1]),
+        derivationPath: reverseQrFriendlyDerivationPath(arr[1]),
         message: decodeURIComponent(arr[2]),
       });
     }
@@ -175,7 +185,7 @@ var signTx = function(unsignedTxHex, network, inputDerivationPathArr, mnemonic) 
     sendTx.sign(i, createHDNodeFromDerivationPath(derivationPath, network, mnemonic));
   });
   
-  return sendTx.build().toHex();
+  return sendTx.build().toHex().toUpperCase();
 }
 
 /**
@@ -218,7 +228,23 @@ module.exports = function(coinIdData) {
 
     // msg
     signMessage: (mnemonic) => signMessage(info.message, info.derivationPath, info.network, mnemonic),
+
+    // get requested data based on type
+    getReturnData: function (mnemonic) {
+      var data = '';
+
+      if(info.type == 'tx') {
+        data = this.signTx(mnemonic);
+      }
+      if(info.type == 'msg') {
+        data = this.signMessage(mnemonic);
+      }
+      if(info.type == 'pub') {
+        var publicKeys = this.getPublicKey(mnemonic);
+        data = publicKeys.map((p) => getQrFriendlyDerivationPath(p.derivationPath) + '$' + p.publicKey).join('+');
+      }
+
+      return data;
+    },
   }
 }
-
-
