@@ -4,7 +4,7 @@
 * Lib for CoinID
 */
 
-const bip39          = require('bip39');
+import bip39 from 'react-native-bip39'
 const bitcoin        = require('bitcoinjs-lib');
 const bitcoinMessage = require('bitcoinjs-message');
 
@@ -17,7 +17,11 @@ const supportedNetworks = {
  * Generates Mnemonic based on bip39
  */
 var generateMnemonic = function() {
-  return bip39.generateMnemonic();
+  try {
+    return bip39.generateMnemonic(128) // default to 128 
+  } catch(e) {
+    return false
+  }
 }
 
 /**
@@ -60,10 +64,14 @@ var createHDNodeFromDerivationPath = function(derivationPath, network, mnemonic)
  * Creates Public Keys for purposeArr which can derive chain and index. This is transfered to the wallet to set up an account..
  */
 var createPublicKeysFromDerivationPaths = function(derivationPathArr, network, mnemonic) {
-  return derivationPathArr.map(derivationPath => ({
-    derivationPath: derivationPath,
-    publicKey: createHDNodeFromDerivationPath(derivationPath, network, mnemonic).neutered().toBase58()
-  }));
+  return derivationPathArr.map(derivationPath => {
+    var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
+    
+    return {
+      derivationPath: derivationPath,
+      publicKey: hdNode.neutered().toBase58()
+    }
+  });
 }
 
 var reverseQrFriendlyDerivationPath = function(qrFriendlyDerivationPath) {
@@ -180,11 +188,12 @@ var infoFromTxHex = function(txHex, network, changeOutputIndexArr, fee) {
 var signTx = function(unsignedTxHex, network, inputDerivationPathArr, mnemonic) {
   var tx = bitcoin.Transaction.fromHex(unsignedTxHex);
   var sendTx = bitcoin.TransactionBuilder.fromTransaction(tx, network);
-
-  inputDerivationPathArr.forEach((derivationPath, i) => {
-    sendTx.sign(i, createHDNodeFromDerivationPath(derivationPath, network, mnemonic));
-  });
   
+  inputDerivationPathArr.forEach((derivationPath, i) => {
+    var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
+    sendTx.sign(i, hdNode);
+  });
+
   return sendTx.build().toHex().toUpperCase();
 }
 
