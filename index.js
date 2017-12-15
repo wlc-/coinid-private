@@ -240,20 +240,13 @@ module.exports = function(coinIdData) {
 
     // get requested data based on type
     getReturnData: function (mnemonic) {
-      var data = '';
-
-      if(info.type == 'tx') {
-        data = this.signTx(mnemonic);
-      }
-      if(info.type == 'msg') {
-        data = this.signMessage(mnemonic);
-      }
-      if(info.type == 'pub') {
-        var publicKeys = this.getPublicKey(mnemonic);
-        data = publicKeys.map((p) => getQrFriendlyDerivationPath(p.derivationPath) + '$' + p.publicKey).join('+');
-      }
-
-      return data;
+      return new Promise((resolve, reject) => {
+        switch(info.type) {
+          case 'tx': return resolve(this.signTx(mnemonic));
+          case 'msg': return resolve(this.signMessage(mnemonic));
+          case 'pub': return resolve(this.getPublicKey(mnemonic).map((p) => getQrFriendlyDerivationPath(p.derivationPath) + '$' + p.publicKey).join('+'));
+        }
+      })
     },
   }
 }
