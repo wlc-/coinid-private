@@ -50,6 +50,42 @@ var getBaseHDNode = function(network, mnemonic) {
   return hdNode;
 }
 
+var getBasePublicKey = function(network, mnemonic) {
+  var hdNode = getBaseHDNode(network, mnemonic);
+  return hdNode.neutered().toBase58();
+}
+
+var getHdNodeFromPublicKey = function(network, pubKey) {
+  var hdNode = bitcoin.HDNode.fromBase58(pubKey, network)
+  return hdNode;
+}
+
+var verifyOwner = function(ownerCheck, network, mnemonic) {
+  var hdNode = getBaseHDNode(network, mnemonic);
+  var { derivationPath, address } = parseOwnerCheck(ownerCheck);
+  var derivedNode = hdNode.derivePath(derivationPath);
+
+  var derivedAddress = derivedNode.getAddress();
+  var shortenedAddress = derivedAddress.substr(0, address.length);
+
+  if(shortenedAddress.toUpperCase() !== address.toUpperCase()) {
+    throw('Wallet not created from this COINiD');
+  }
+
+  return true;
+}
+
+var parseOwnerCheck = function(ownerCheck) {
+  var splitData = ownerCheck.split('+');
+  var derivationPath = reverseQrFriendlyDerivationPath(splitData[0]);
+  var address = splitData[1];
+
+  return {
+    derivationPath,
+    address
+  }
+}
+
 /**
  * Gets keyPair from derivation path and Mnemonic
  */
@@ -112,41 +148,52 @@ var infoFromCoinId = function(coinIdData) {
   var parseInputDerivationData = inputData => !inputData ? [] : inputData.split('+').map(reverseQrFriendlyDerivationPath);
 
   var parse = cid => {
-    var arr = cid.split('.');
+    var arr = cid.split(':');
     var network = getNetworkFromTicker(arr[0]);
+
+    if(arr.length < 3) {
+      throw('Data not formatted correctly');
+    }
+
+    if(!network) {
+      throw('Unsupported coin');
+    }
 
     var head = {
       type: type,
       network: network,
-      ticker: arr[0]
+      ticker: arr[0],
+      ownerCheck: arr[1]
     }
 
-    if(type == 'tx') {
+    if(type == 'tx' && arr.length == 6) {
       return Object.assign(head, {
-        inputDerivationPathArr: parseInputDerivationData(arr[1]),
-        txHex: arr[2],
-        changeOutputIndexArr: parseOutputIndexData(arr[3]),
-        fee: Number(arr[4])
+        inputDerivationPathArr: parseInputDerivationData(arr[2]),
+        txHex: arr[3],
+        changeOutputIndexArr: parseOutputIndexData(arr[4]),
+        fee: Number(arr[5])
       });
     }
 
-    if(type == 'pub') {
+    if(type == 'pub' && arr.length == 3) {
       return Object.assign(head, {
-        derivationPathArr: parseInputDerivationData(arr[1])
+        derivationPathArr: parseInputDerivationData(arr[2])
       });
     }
 
-    if(type == 'msg') {
+    if(type == 'msg' && arr.length == 4) {
       return Object.assign(head, {
-        derivationPath: reverseQrFriendlyDerivationPath(arr[1]),
-        message: decodeURIComponent(arr[2]),
+        derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
+        message: decodeURIComponent(arr[3]),
       });
     }
 
     return head;
   }
 
-  return parse(coinIdData);
+  var parsedData = parse(coinIdData);
+
+  return parsedData;
 }
 
 /**
@@ -227,6 +274,8 @@ module.exports = function(coinIdData) {
     getInfo: () => info,
     getAddressFromDerivationPath: (derivationPath, mnemonic) => getAddressFromDerivationPath(info.derivationPath, info.network, mnemonic),
     generateMnemonic: () => generateMnemonic(),
+    getBasePublicKey: (mnemonic) => getBasePublicKey(info.network, mnemonic),
+    verifyOwner: (mnemonic) => verifyOwner(info.ownerCheck, info.network, mnemonic),
 
     // pub
     getPublicKey: (mnemonic) => createPublicKeysFromDerivationPaths(info.derivationPathArr, info.network, mnemonic),
@@ -241,10 +290,12 @@ module.exports = function(coinIdData) {
     // get requested data based on type
     getReturnData: function (mnemonic) {
       return new Promise((resolve, reject) => {
-        switch(info.type) {
-          case 'tx': return resolve(this.signTx(mnemonic));
-          case 'msg': return resolve(this.signMessage(mnemonic));
-          case 'pub': return resolve(this.getPublicKey(mnemonic).map((p) => getQrFriendlyDerivationPath(p.derivationPath) + '$' + p.publicKey).join('+'));
+        if(this.verifyOwner(mnemonic)) {
+          switch(info.type) {
+            case 'tx': return resolve(this.signTx(mnemonic));
+            case 'msg': return resolve(this.signMessage(mnemonic));
+            case 'pub': return resolve(this.getPublicKey(mnemonic).map((p) => getQrFriendlyDerivationPath(p.derivationPath) + '$' + p.publicKey).join('+'));
+          }
         }
       })
     },
