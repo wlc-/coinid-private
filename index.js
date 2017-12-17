@@ -61,15 +61,17 @@ var getHdNodeFromPublicKey = function(network, pubKey) {
 }
 
 var verifyOwner = function(ownerCheck, network, mnemonic) {
-  var hdNode = getBaseHDNode(network, mnemonic);
-  var { derivationPath, address } = parseOwnerCheck(ownerCheck);
-  var derivedNode = hdNode.derivePath(derivationPath);
+  if(ownerCheck) {
+    var hdNode = getBaseHDNode(network, mnemonic);
+    var { derivationPath, address } = parseOwnerCheck(ownerCheck);
+    var derivedNode = hdNode.derivePath(derivationPath);
 
-  var derivedAddress = derivedNode.getAddress();
-  var shortenedAddress = derivedAddress.substr(0, address.length);
+    var derivedAddress = derivedNode.getAddress();
+    var shortenedAddress = derivedAddress.substr(0, address.length);
 
-  if(shortenedAddress.toUpperCase() !== address.toUpperCase()) {
-    throw('Wallet not created from this COINiD');
+    if(shortenedAddress.toUpperCase() !== address.toUpperCase()) {
+      throw('Wallet not created from this COINiD');
+    }
   }
 
   return true;
