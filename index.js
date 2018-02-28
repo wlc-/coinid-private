@@ -10,7 +10,8 @@ const bitcoinMessage = require('bitcoinjs-message');
 
 const supportedNetworks = {
   'xmy': bitcoin.networks.myriad,
-  'btc': bitcoin.networks.bitcoin
+  'btc': bitcoin.networks.bitcoin,
+  'tbtc': bitcoin.networks.testnet
 }
 
 /**
@@ -112,17 +113,8 @@ var createPublicKeysFromDerivationPaths = function(derivationPathArr, network, m
   });
 }
 
-var checkDerivationPath = function(derivationPath) {
-  if(!derivationPath.match(/^(m\/)?(\d+'?\/)*\d+'?$/)) {
-    throw('Error parsing BIP32 derivation path');
-  }
-  return true;
-}
-
 var reverseQrFriendlyDerivationPath = function(qrFriendlyDerivationPath) {
-  let derivationPath = 'm/'+qrFriendlyDerivationPath.replace(new RegExp('\\*', 'g'), '/').replace(new RegExp('\\-', 'g'), '\'');
-  checkDerivationPath(derivationPath);
-  return derivationPath;
+  return 'm/'+qrFriendlyDerivationPath.replace(new RegExp('\\*', 'g'), '/').replace(new RegExp('\\-', 'g'), '\'');
 }
 
 var getQrFriendlyDerivationPath = function(derivationPath) {
@@ -170,10 +162,6 @@ var infoFromCoinId = function(coinIdData) {
       throw('Unsupported coin');
     }
 
-    if(! ['pub', 'tx', 'msg'].includes(type) ) {
-      throw('Wrong format');
-    }
-
     var head = {
       type: type,
       network: network,
@@ -182,15 +170,12 @@ var infoFromCoinId = function(coinIdData) {
     }
 
     if(type == 'tx' && arr.length == 6) {
-      var info = Object.assign(head, {
+      return Object.assign(head, {
         inputDerivationPathArr: parseInputDerivationData(arr[2]),
         txHex: arr[3],
         changeOutputIndexArr: parseOutputIndexData(arr[4]),
         fee: Number(arr[5])
       });
-
-      info.txInfo = infoFromTxHex(info.txHex, info.network, info.changeOutputIndexArr, info.fee);
-      return info;
     }
 
     if(type == 'pub' && arr.length == 3) {
@@ -200,16 +185,9 @@ var infoFromCoinId = function(coinIdData) {
     }
 
     if(type == 'msg' && arr.length == 4) {
-      try {
-        var decodedMessage = decodeURIComponent(arr[3]);
-      }
-      catch(error) {
-        throw('Error parsing message');
-      }
-
       return Object.assign(head, {
         derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
-        message: decodedMessage,
+        message: decodeURIComponent(arr[3]),
       });
     }
 
@@ -225,12 +203,7 @@ var infoFromCoinId = function(coinIdData) {
  * Gets information from a Raw TX Hex
  */
 var infoFromTxHex = function(txHex, network, changeOutputIndexArr, fee) {
-  try {
-    var tx = bitcoin.Transaction.fromHex(txHex);
-  }
-  catch(error) {
-    throw("Error parsing transaction data")
-  }
+  var tx = bitcoin.Transaction.fromHex(txHex);
 
   var mapOutputs = o => ({
     address: scriptToAddress(o.script, network),
@@ -311,7 +284,7 @@ module.exports = function(coinIdData) {
     getPublicKey: (mnemonic) => createPublicKeysFromDerivationPaths(info.derivationPathArr, info.network, mnemonic),
 
     // tx
-    getTxInfo: () => info.txInfo ? info.txInfo : infoFromTxHex(info.txHex, info.network, info.changeOutputIndexArr, info.fee),
+    getTxInfo: () => infoFromTxHex(info.txHex, info.network, info.changeOutputIndexArr, info.fee),
     signTx: (mnemonic) => signTx(info.txHex, info.network, info.inputDerivationPathArr, mnemonic),
 
     // msg
