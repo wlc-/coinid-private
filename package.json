@@ -19,6 +19,7 @@
   "dependencies": {
     "bip39": "^2.4.0",
     "bitcoinjs-lib": "git+https://github.com/wlc-/bitcoinjs-lib.git",
-    "bitcoinjs-message": "^2.0.0"
+    "bitcoinjs-message": "^2.0.0",
+    "coinid-address-types": "https://github.com/wlc-/coinid-address-types.git"
   }
 }

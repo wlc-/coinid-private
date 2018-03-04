@@ -7,6 +7,7 @@
 import bip39 from 'react-native-bip39'
 const bitcoin        = require('bitcoinjs-lib');
 const bitcoinMessage = require('bitcoinjs-message');
+import { getAddressFunctionFromDerivation } from 'coinid-address-types'
 
 const supportedNetworks = {
   'xmy': bitcoin.networks.myriad,
@@ -67,7 +68,7 @@ var verifyOwner = function(ownerCheck, network, mnemonic) {
     var { derivationPath, address } = parseOwnerCheck(ownerCheck);
     var derivedNode = hdNode.derivePath(derivationPath);
 
-    var derivedAddress = derivedNode.getAddress();
+    var derivedAddress = getAddressFunctionFromDerivation(derivationPath)(derivedNode);
     var shortenedAddress = derivedAddress.substr(0, address.length);
 
     if(shortenedAddress.toUpperCase() !== address.toUpperCase()) {
