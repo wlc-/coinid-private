@@ -7,7 +7,7 @@
 import bip39 from 'react-native-bip39'
 const bitcoin        = require('bitcoinjs-lib');
 const bitcoinMessage = require('bitcoinjs-message');
-import { getAddressFunctionFromDerivation } from 'coinid-address-types'
+import { getAddressFunctionFromDerivation, getSignInputFunctionFromDerivation } from 'coinid-address-types'
 
 const supportedNetworks = {
   'xmy': bitcoin.networks.myriad,
@@ -150,6 +150,7 @@ var infoFromCoinId = function(coinIdData) {
 
   var parseOutputIndexData = inputData => !inputData ? [] : inputData.split('+').map(Number);
   var parseInputDerivationData = inputData => !inputData ? [] : inputData.split('+').map(reverseQrFriendlyDerivationPath);
+  var parseInputValueData = inputData => !inputData ? [] : inputData.split('+').map(Number);
 
   var parse = cid => {
     var arr = cid.split(':');
@@ -175,7 +176,7 @@ var infoFromCoinId = function(coinIdData) {
         inputDerivationPathArr: parseInputDerivationData(arr[2]),
         txHex: arr[3],
         changeOutputIndexArr: parseOutputIndexData(arr[4]),
-        fee: Number(arr[5])
+        inputValueArr: parseInputValueData(arr[5]),
       });
     }
 
@@ -203,7 +204,7 @@ var infoFromCoinId = function(coinIdData) {
 /**
  * Gets information from a Raw TX Hex
  */
-var infoFromTxHex = function(txHex, network, changeOutputIndexArr, fee) {
+var infoFromTxHex = function(txHex, network, changeOutputIndexArr, inputValueArr) {
   var tx = bitcoin.Transaction.fromHex(txHex);
 
   var mapOutputs = o => ({
@@ -218,17 +219,21 @@ var infoFromTxHex = function(txHex, network, changeOutputIndexArr, fee) {
   var externalOutputs = allOutputs.filter(removeChange);
   var changeOutputs = allOutputs.filter(removeExternal);
 
-  var allTotal = allOutputs.map(o => o.amount).reduce((sum, val) => sum+val, 0);
+  var allOutputTotal = allOutputs.map(o => o.amount).reduce((sum, val) => sum+val, 0);
   var externalTotal = externalOutputs.map(o => o.amount).reduce((sum, val) => sum+val, 0);
   var changeTotal = changeOutputs.map(o => o.amount).reduce((sum, val) => sum+val, 0);
+
+  var allInputTotal = inputValueArr.reduce((sum, val) => sum+val, 0);
+  var fee = allInputTotal - allOutputTotal;
 
   return {
     allOutputs,
     externalOutputs,
     changeOutputs,
-    allTotal,
+    allOutputTotal,
     externalTotal,
     changeTotal,
+    allInputTotal,
     fee
   }
 }
@@ -236,16 +241,18 @@ var infoFromTxHex = function(txHex, network, changeOutputIndexArr, fee) {
 /**
  * Signs TX Hex with mnemonic
  */
-var signTx = function(unsignedTxHex, network, inputDerivationPathArr, mnemonic) {
+var signTx = function(unsignedTxHex, network, inputDerivationPathArr, inputValueArr, mnemonic) {
+
   var tx = bitcoin.Transaction.fromHex(unsignedTxHex);
   var sendTx = bitcoin.TransactionBuilder.fromTransaction(tx, network);
   
   inputDerivationPathArr.forEach((derivationPath, i) => {
     var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
-    sendTx.sign(i, hdNode);
+    getSignInputFunctionFromDerivation(derivationPath)(sendTx, i, hdNode, inputValueArr[i]);
   });
 
-  return sendTx.build().toHex().toUpperCase();
+  let rawTx = sendTx.build().toHex();
+  return rawTx;
 }
 
 /**
@@ -285,8 +292,8 @@ module.exports = function(coinIdData) {
     getPublicKey: (mnemonic) => createPublicKeysFromDerivationPaths(info.derivationPathArr, info.network, mnemonic),
 
     // tx
-    getTxInfo: () => infoFromTxHex(info.txHex, info.network, info.changeOutputIndexArr, info.fee),
-    signTx: (mnemonic) => signTx(info.txHex, info.network, info.inputDerivationPathArr, mnemonic),
+    getTxInfo: () => infoFromTxHex(info.txHex, info.network, info.changeOutputIndexArr, info.inputValueArr),
+    signTx: (mnemonic) => signTx(info.txHex, info.network, info.inputDerivationPathArr, info.inputValueArr, mnemonic),
 
     // msg
     signMessage: (mnemonic) => signMessage(info.message, info.derivationPath, info.network, mnemonic),
