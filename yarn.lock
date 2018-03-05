@@ -117,9 +117,15 @@ cipher-base@^1.0.0, cipher-base@^1.0.1, cipher-base@^1.0.3:
     inherits "^2.0.1"
     safe-buffer "^5.0.1"
 
-"coinid-address-types@https://github.com/wlc-/coinid-address-types.git":
+"coinid-address-functions@https://github.com/wlc-/coinid-address-functions.git":
   version "0.0.0"
-  resolved "https://github.com/wlc-/coinid-address-types.git#2025d9f2b5d810450a48bd200c25b2e7b5ccf636"
+  resolved "https://github.com/wlc-/coinid-address-functions.git#43125f18c24570e27149aab4d03b74f461eff120"
+
+"coinid-address-types@https://github.com/wlc-/coinid-address-types.git":
+  version "1.0.0"
+  resolved "https://github.com/wlc-/coinid-address-types.git#447b8e660ca1020ceef8aeaa389dbed0bc2209fc"
+  dependencies:
+    coinid-address-functions "https://github.com/wlc-/coinid-address-functions.git"
 
 create-hash@^1.1.0, create-hash@^1.1.2:
   version "1.1.3"
