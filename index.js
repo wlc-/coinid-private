@@ -193,6 +193,12 @@ var infoFromCoinId = function(coinIdData) {
       });
     }
 
+    if(type == 'val' && arr.length == 3) {
+      return Object.assign(head, {
+        derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
+      });
+    }
+
     return head;
   }
 
@@ -256,6 +262,16 @@ var signTx = function(unsignedTxHex, network, inputDerivationPathArr, inputValue
 }
 
 /**
+ * Validate address
+ */
+var validateAddress = function(derivationPath, network, mnemonic) {
+  var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
+  var derivedAddress = getAddressFunctionFromDerivation(derivationPath)(hdNode);
+
+  return derivedAddress;
+}
+
+/**
  * Signs message
  */
 var signMessage = function(message, derivationPath, network, mnemonic) {
@@ -295,6 +311,9 @@ module.exports = function(coinIdData) {
     getTxInfo: () => infoFromTxHex(info.txHex, info.network, info.changeOutputIndexArr, info.inputValueArr),
     signTx: (mnemonic) => signTx(info.txHex, info.network, info.inputDerivationPathArr, info.inputValueArr, mnemonic),
 
+    // val
+    validateAddress: (mnemonic) => validateAddress(info.derivationPath, info.network, mnemonic),
+
     // msg
     signMessage: (mnemonic) => signMessage(info.message, info.derivationPath, info.network, mnemonic),
 
@@ -304,6 +323,7 @@ module.exports = function(coinIdData) {
         if(this.verifyOwner(mnemonic)) {
           switch(info.type) {
             case 'tx': return resolve(this.signTx(mnemonic));
+            case 'val': return resolve(this.validateAddress(mnemonic));
             case 'msg': return resolve(this.signMessage(mnemonic));
             case 'pub': return resolve(this.getPublicKey(mnemonic).map((p) => getQrFriendlyDerivationPath(p.derivationPath) + '$' + p.publicKey).join('+'));
           }
