@@ -195,6 +195,13 @@ var infoFromCoinId = function(coinIdData) {
       });
     }
 
+    if(type == '2fa' && arr.length == 4) {
+      return Object.assign(head, {
+        derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
+        message: decodeURIComponent(arr[3]),
+      });
+    }
+
     if(type == 'val' && arr.length == 3) {
       return Object.assign(head, {
         derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
@@ -327,6 +334,7 @@ module.exports = function(coinIdData) {
             case 'tx': return resolve(this.signTx(mnemonic));
             case 'val': return resolve(this.validateAddress(mnemonic));
             case 'msg': return resolve(this.signMessage(mnemonic));
+            case '2fa': return resolve(this.signMessage(mnemonic));
             case 'pub': return resolve(this.getPublicKey(mnemonic).map((p) => getQrFriendlyDerivationPath(p.derivationPath) + '$' + p.publicKey).join('+'));
           }
         }
