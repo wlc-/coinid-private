@@ -30,7 +30,7 @@ var generateMnemonic = function() {
  * Retrieves network parameters from ticker string
  */
 var getNetworkFromTicker = function(ticker) {
-  return supportedNetworks[ticker];
+  return supportedNetworks[ticker.toLowerCase()];
 };
 
 /**
@@ -155,7 +155,8 @@ var infoFromCoinId = function(coinIdData) {
 
   var parse = cid => {
     var arr = cid.split(':');
-    var network = getNetworkFromTicker(arr[0]);
+    var ticker = arr[0].toLowerCase();
+    var network = getNetworkFromTicker(ticker);
 
     if(arr.length < 3) {
       throw('Data not formatted correctly');
