@@ -142,10 +142,11 @@ var getQrFriendlyDerivationPath = function(derivationPath) {
 var infoFromCoinId = function(coinIdData) {
   coinIdData = coinIdData || '';
   // parses addressData fields in coinIdData
-  coinIdData = coinIdData.toLowerCase();
+  
 
   var splitData = coinIdData.split('/');
   var type = splitData[0] || '';
+  type = type.toLowerCase();
   coinIdData = splitData[1] || '';
 
   var parseOutputIndexData = inputData => !inputData ? [] : inputData.split('+').map(Number);
