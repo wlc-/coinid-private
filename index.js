@@ -303,7 +303,7 @@ var signTx = function(unsignedTxHex, network, inputDerivationPathArr, inputValue
   var sendTx = bitcoin.TransactionBuilder.fromTransaction(tx, network);
   
   inputDerivationPathArr.forEach((derivationPath, i) => {
-    var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);;
+    var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
     getSignInputFunctionFromDerivation(derivationPath)(sendTx, i, hdNode, inputValueArr[i]);
   });
 
