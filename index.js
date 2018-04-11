@@ -7,6 +7,7 @@
 import bip39 from 'react-native-bip39'
 const bitcoin        = require('bitcoinjs-lib');
 const bitcoinMessage = require('bitcoinjs-message');
+const md5 = require('md5');
 import { getAddressFunctionFromDerivation, getSignInputFunctionFromDerivation } from 'coinid-address-types'
 
 const supportedNetworks = {
@@ -38,18 +39,6 @@ var getNetworkFromTicker = function(ticker) {
  */
 var scriptToAddress = function(script, network) {
   return bitcoin.address.fromOutputScript(script, network);
-}
-
-/**
- * Creates HDNode from mnemonic
- */
-var getBaseHDNode = function(network, mnemonic) {
-  var hdNode = bitcoin.HDNode.fromSeedBuffer(
-    bip39.mnemonicToSeed(mnemonic),
-    network 
-  );
-
-  return hdNode;
 }
 
 var getBasePublicKey = function(network, mnemonic) {
@@ -90,15 +79,67 @@ var parseOwnerCheck = function(ownerCheck) {
   }
 }
 
+var cachedHDNodeMap = {};
+
+var getCachedHDNodeKey = (derivationPath, network, mnemonic) => {
+  return md5(derivationPath + network.wif + mnemonic);
+}
+
+var getCachedHDNode = (derivationPath, network, mnemonic) => {
+  var cacheKey = getCachedHDNodeKey(derivationPath, network, mnemonic);
+  return cachedHDNodeMap[cacheKey];
+}
+
+var setCachedHDNode = (hdNode, derivationPath, network, mnemonic) => {
+  var cacheKey = getCachedHDNodeKey(derivationPath, network, mnemonic);
+  cachedHDNodeMap[cacheKey] = hdNode;
+}
+
+/**
+ * Creates HDNode from mnemonic
+ */
+var getBaseHDNode = function(network, mnemonic) {
+  var hdNode = getCachedHDNode('m', network, mnemonic);
+
+  if(hdNode === undefined) {
+    hdNode = bitcoin.HDNode.fromSeedBuffer(
+      bip39.mnemonicToSeed(mnemonic),
+      network 
+    );
+    setCachedHDNode(hdNode, 'm', network, mnemonic);
+  }
+
+  return hdNode;
+}
+
 /**
  * Gets keyPair from derivation path and Mnemonic
  */
 var createHDNodeFromDerivationPath = function(derivationPath, network, mnemonic) {
-  var baseHDNode = getBaseHDNode(network, mnemonic);
-  var derivedHDNode = baseHDNode.derivePath(derivationPath);
+  var currentHDNode = getBaseHDNode(network, mnemonic);
 
-  return derivedHDNode;
+  var splitPath = derivationPath.split('/');
+  if (splitPath[0] === 'm') {
+    splitPath = splitPath.slice(1);
+  }
+
+  for (var i = 0; i < splitPath.length; i++) {
+    var path = splitPath[i];
+    var fullPath = 'm/'+splitPath.slice(0, i+1).join('/');
+
+    var cachedHDNode = getCachedHDNode(fullPath, network, mnemonic);
+    if(cachedHDNode === undefined) {
+      currentHDNode = currentHDNode.derivePath(path);
+      setCachedHDNode(currentHDNode, fullPath, network, mnemonic);
+    }
+    else {
+      currentHDNode = cachedHDNode;
+    }
+  }
+  return currentHDNode;
 }
+
+
 
 /**
  * Creates Public Keys for purposeArr which can derive chain and index. This is transfered to the wallet to set up an account..
@@ -262,7 +303,7 @@ var signTx = function(unsignedTxHex, network, inputDerivationPathArr, inputValue
   var sendTx = bitcoin.TransactionBuilder.fromTransaction(tx, network);
   
   inputDerivationPathArr.forEach((derivationPath, i) => {
-    var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
+    var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);;
     getSignInputFunctionFromDerivation(derivationPath)(sendTx, i, hdNode, inputValueArr[i]);
   });
 
