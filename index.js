@@ -7,7 +7,7 @@
 import bip39 from 'react-native-bip39'
 const bitcoin        = require('bitcoinjs-lib');
 const bitcoinMessage = require('bitcoinjs-message');
-const md5 = require('md5');
+const md5            = require('md5');
 import { getAddressFunctionFromDerivation, getSignInputFunctionFromDerivation } from 'coinid-address-types'
 
 const supportedNetworks = {
@@ -116,6 +116,11 @@ var getBaseHDNode = function(network, mnemonic) {
  * Gets keyPair from derivation path and Mnemonic
  */
 var createHDNodeFromDerivationPath = function(derivationPath, network, mnemonic) {
+  var cachedHDNode = getCachedHDNode(derivationPath, network, mnemonic);
+  if(cachedHDNode !== undefined) {
+    return cachedHDNode;
+  }
+
   var currentHDNode = getBaseHDNode(network, mnemonic);
 
   var splitPath = derivationPath.split('/');
