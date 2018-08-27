@@ -375,6 +375,10 @@ module.exports = function(coinIdData) {
     // get requested data based on type
     getReturnData: function (mnemonic) {
       return new Promise((resolve, reject) => {
+        if(info.type === 'sah') { // simple auth skips ownercheck...
+          return resolve(info.message);
+        }
+
         if(this.verifyOwner(mnemonic)) {
           switch(info.type) {
             case 'tx': return resolve(this.signTx(mnemonic));
