@@ -306,7 +306,8 @@ var signTx = function(unsignedTxHex, network, inputDerivationPathArr, inputValue
 
   var tx = bitcoin.Transaction.fromHex(unsignedTxHex);
   var sendTx = bitcoin.TransactionBuilder.fromTransaction(tx, network);
-  
+  sendTx.maximumFeeRate = 5000;
+
   inputDerivationPathArr.forEach((derivationPath, i) => {
     var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
     getSignInputFunctionFromDerivation(derivationPath)(sendTx, i, hdNode, inputValueArr[i]);
