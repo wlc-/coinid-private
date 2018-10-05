@@ -124,11 +124,11 @@ cipher-base@^1.0.0, cipher-base@^1.0.1, cipher-base@^1.0.3:
 
 "coinid-address-functions@https://github.com/wlc-/coinid-address-functions.git":
   version "1.0.0"
-  resolved "https://github.com/wlc-/coinid-address-functions.git#268925ce0ad3746e0e0052fa60a4f4d87fdd8655"
+  resolved "https://github.com/wlc-/coinid-address-functions.git#9586117837bd6fd85ac7497c7d6bf994ce1514e6"
 
 "coinid-address-types@https://github.com/wlc-/coinid-address-types.git":
   version "1.0.0"
-  resolved "https://github.com/wlc-/coinid-address-types.git#b91043af2cba2ffacf41f17a7a7c7f1bd05b6e37"
+  resolved "https://github.com/wlc-/coinid-address-types.git#1cf8460743eae62f3a31a08cd6051415af1adcbd"
   dependencies:
     coinid-address-functions "https://github.com/wlc-/coinid-address-functions.git"
 

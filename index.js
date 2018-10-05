@@ -8,7 +8,7 @@ import bip39 from 'react-native-bip39'
 const bitcoin        = require('bitcoinjs-lib');
 const bitcoinMessage = require('bitcoinjs-message');
 const md5            = require('md5');
-import { getAddressFunctionFromDerivation, getSignInputFunctionFromDerivation } from 'coinid-address-types'
+import { getAddInputFunctionFromDerivation, getAddressFunctionFromDerivation, getSignInputFunctionFromDerivation } from 'coinid-address-types'
 
 const supportedNetworks = {
   'xmy': bitcoin.networks.myriad,
@@ -308,8 +308,21 @@ var signTx = function(unsignedTxHex, network, inputDerivationPathArr, inputValue
   var sendTx = bitcoin.TransactionBuilder.fromTransaction(tx, network);
   sendTx.maximumFeeRate = 5000;
 
+  // because fromHex does not include P2WPKH input correctly we clear and add our inputs again here.
+  const ins = sendTx.tx.ins.slice(0);
+  sendTx.tx.ins = [];
+  sendTx.inputs = [];
+  sendTx.prevTxMap = {};
+
   inputDerivationPathArr.forEach((derivationPath, i) => {
-    var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
+    const input = ins[i];
+    const hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
+    
+    getAddInputFunctionFromDerivation(derivationPath)(sendTx, input, input.sequence, hdNode);
+  });
+
+  inputDerivationPathArr.forEach((derivationPath, i) => {
+    const hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
     getSignInputFunctionFromDerivation(derivationPath)(sendTx, i, hdNode, inputValueArr[i]);
   });
 
