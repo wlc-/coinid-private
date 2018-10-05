@@ -127,7 +127,7 @@ cipher-base@^1.0.0, cipher-base@^1.0.1, cipher-base@^1.0.3:
 
 "coinid-address-types@https://github.com/wlc-/coinid-address-types.git":
   version "1.0.0"
-  resolved "https://github.com/wlc-/coinid-address-types.git#9076301735b0ebdfa561629f9bd300c6dd30b3f6"
+  resolved "https://github.com/wlc-/coinid-address-types.git#b91043af2cba2ffacf41f17a7a7c7f1bd05b6e37"
   dependencies:
     coinid-address-functions "https://github.com/wlc-/coinid-address-functions.git"
 
