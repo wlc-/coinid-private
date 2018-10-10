@@ -267,7 +267,7 @@ var infoFromCoinId = function(coinIdData) {
  * Gets information from a Raw TX Hex
  */
 var infoFromTxHex = function(txHex, network, changeOutputIndexArr, inputValueArr) {
-  var tx = bitcoin.Transaction.fromHex(txHex);
+  var tx = bitcoin.Transaction.fromHex(txHex, network);
 
   var mapOutputs = o => ({
     address: scriptToAddress(o.script, network),
@@ -305,7 +305,7 @@ var infoFromTxHex = function(txHex, network, changeOutputIndexArr, inputValueArr
  */
 var signTx = function(unsignedTxHex, network, inputDerivationPathArr, inputValueArr, mnemonic) {
 
-  var tx = bitcoin.Transaction.fromHex(unsignedTxHex);
+  var tx = bitcoin.Transaction.fromHex(unsignedTxHex, network);
   var sendTx = bitcoin.TransactionBuilder.fromTransaction(tx, network);
   sendTx.maximumFeeRate = 5000;
 
