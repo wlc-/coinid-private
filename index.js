@@ -13,7 +13,8 @@ import { getAddInputFunctionFromDerivation, getAddressFunctionFromDerivation, ge
 const supportedNetworks = {
   'xmy': bitcoin.networks.myriad,
   'btc': bitcoin.networks.bitcoin,
-  'tbtc': bitcoin.networks.testnet
+  'tbtc': bitcoin.networks.testnet,
+  'grs': bitcoin.networks.groestlcoin
 }
 
 /**
