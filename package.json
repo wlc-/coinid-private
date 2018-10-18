@@ -18,7 +18,7 @@
   "homepage": "https://github.com/wlc-/coinid-private#readme",
   "dependencies": {
     "bip39": "^2.4.0",
-    "bitcoinjs-lib": "https://github.com/wlc-/bitcoinjs-lib#feature--groestlcoin",
+    "bitcoinjs-lib": "https://github.com/wlc-/bitcoinjs-lib",
     "bitcoinjs-message": "^2.0.0",
     "coinid-address-types": "https://github.com/wlc-/coinid-address-types.git",
     "md5": "^2.2.1"
