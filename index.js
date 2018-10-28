@@ -327,7 +327,7 @@ var signTx = function(unsignedTxHex, network, inputDerivationPathArr, inputValue
     getSignInputFunctionFromDerivation(derivationPath)(sendTx, i, hdNode, inputValueArr[i]);
   });
 
-  let rawTx = sendTx.build().toHex();
+  let rawTx = sendTx.build().toHex().toUpperCase();
   return rawTx;
 }
 
