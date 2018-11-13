@@ -83,7 +83,7 @@ var parseOwnerCheck = function(ownerCheck) {
 var cachedHDNodeMap = {};
 
 var getCachedHDNodeKey = (derivationPath, network, mnemonic) => {
-  return md5(derivationPath + network.wif + mnemonic);
+  return md5(derivationPath + network.ticker + mnemonic);
 }
 
 var getCachedHDNode = (derivationPath, network, mnemonic) => {
