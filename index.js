@@ -14,7 +14,8 @@ const supportedNetworks = {
   'xmy': bitcoin.networks.myriad,
   'btc': bitcoin.networks.bitcoin,
   'tbtc': bitcoin.networks.testnet,
-  'grs': bitcoin.networks.groestlcoin
+  'grs': bitcoin.networks.groestlcoin,
+  'tgrs': bitcoin.networks["groestlcoin-testnet"]
 }
 
 /**
@@ -22,7 +23,7 @@ const supportedNetworks = {
  */
 var generateMnemonic = function() {
   try {
-    return bip39.generateMnemonic(128) // default to 128 
+    return bip39.generateMnemonic(128) // default to 128
   } catch(e) {
     return false
   }
@@ -105,7 +106,7 @@ var getBaseHDNode = function(network, mnemonic) {
   if(hdNode === undefined) {
     hdNode = bitcoin.HDNode.fromSeedBuffer(
       bip39.mnemonicToSeed(mnemonic),
-      network 
+      network
     );
     setCachedHDNode(hdNode, 'm', network, mnemonic);
   }
@@ -153,7 +154,7 @@ var createHDNodeFromDerivationPath = function(derivationPath, network, mnemonic)
 var createPublicKeysFromDerivationPaths = function(derivationPathArr, network, mnemonic) {
   return derivationPathArr.map(derivationPath => {
     var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
-    
+
     return {
       derivationPath: derivationPath,
       publicKey: hdNode.neutered().toBase58()
@@ -189,7 +190,7 @@ var getQrFriendlyDerivationPath = function(derivationPath) {
 var infoFromCoinId = function(coinIdData) {
   coinIdData = coinIdData || '';
   // parses addressData fields in coinIdData
-  
+
 
   var splitData = coinIdData.split('/');
   var type = splitData[0] || '';
@@ -276,7 +277,7 @@ var infoFromTxHex = function(txHex, network, changeOutputIndexArr, inputValueArr
 
   var removeChange = (o, i) => !changeOutputIndexArr.includes(i);
   var removeExternal = (o, i) => !removeChange(o, i);
-  
+
   var allOutputs = tx.outs.map(mapOutputs);
   var externalOutputs = allOutputs.filter(removeChange);
   var changeOutputs = allOutputs.filter(removeExternal);
@@ -318,7 +319,7 @@ var signTx = function(unsignedTxHex, network, inputDerivationPathArr, inputValue
   inputDerivationPathArr.forEach((derivationPath, i) => {
     const input = ins[i];
     const hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
-    
+
     getAddInputFunctionFromDerivation(derivationPath)(sendTx, input, input.sequence, hdNode);
   });
 

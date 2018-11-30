@@ -42,7 +42,7 @@ bitcoin-ops@^1.3.0:
 
 "bitcoinjs-lib@https://github.com/wlc-/bitcoinjs-lib":
   version "3.3.0"
-  resolved "https://github.com/wlc-/bitcoinjs-lib#5d62efa49eb1e3cb52cca561171fa8b2d15ebe23"
+  resolved "https://github.com/wlc-/bitcoinjs-lib#3088e356235a186218ba9b954e98f01150d43858"
   dependencies:
     bech32 "0.0.3"
     bigi "^1.4.0"
