@@ -80,13 +80,6 @@ var verifyChangeOutputs = function(changeOutputs, changeDerivationPathArr, netwo
     return true;
   }
 
-  /*
-  allows older wallets to skip check... but it is not safe... might do this temporary...
-  if(changeDerivationPathArr.length === 0) {
-    return true;
-  }
-  */
-
   var hdNode = getBaseHDNode(network, mnemonic);
 
   // fetch derivationpath from changeoutput index because
@@ -210,24 +203,10 @@ var getQrFriendlyDerivationPath = function(derivationPath) {
   .replace(new RegExp('\'', 'g'), '-');
 }
 
-/** - coinData innehåller fee också då vi inte kan ta reda på detta offline annars.. kanske unsafe... om coinid är online så bör vi kanske hämta fee från blockchain
- *                                       [inputDerivationData]                                        [changeOutputIndexData]
- * Structure of signTx = [type]/[ticker].[derivationPath+derivationPath+derivationPath].[unsignedHex].[index+index+index].[fee]
- * Structure of getPubKey = [type]/[ticker].[derivationPath+derivationPath] // vid skapandet av wallet..
- * Structure of signMsg = [type]/[ticker].[derivationPath].message
- *
- * derivationPath:
- * seperator: *
- * hardened indicator: -
- * example: 44-*90-*0-*1*2 = 44'/90'/0'/1/2
- *
- * types = tx, pub, msg
- *
- */
+
 var infoFromCoinId = function(coinIdData) {
   coinIdData = coinIdData || '';
   // parses addressData fields in coinIdData
-
 
   var splitData = coinIdData.split('/');
   var type = splitData[0] || '';
@@ -258,19 +237,11 @@ var infoFromCoinId = function(coinIdData) {
       ownerCheck: arr[1]
     }
 
-    if(type == 'tx') {
-      if( arr.length === 6 ) {
-        return Object.assign(head, {
-          inputDerivationPathArr: parseInputDerivationData(arr[2]),
-          txHex: arr[3],
-          changeOutputIndexArr: parseOutputIndexData(arr[4]),
-          inputValueArr: parseInputValueData(arr[5]),
-        });
-      }
+    var info = {};
 
-      // Field extension
+    if(type == 'tx') {
       if( arr.length === 7 ) {
-        return Object.assign(head, {
+        info = Object.assign(head, {
           inputDerivationPathArr: parseInputDerivationData(arr[2]),
           txHex: arr[3],
           changeOutputIndexArr: parseOutputIndexData(arr[4]),
@@ -280,33 +251,45 @@ var infoFromCoinId = function(coinIdData) {
       }
     }
 
-    if(type == 'pub' && arr.length == 3) {
-      return Object.assign(head, {
-        derivationPathArr: parseInputDerivationData(arr[2])
-      });
+    if(type == 'pub') {
+     if(arr.length == 3) {
+        info = Object.assign(head, {
+          derivationPathArr: parseInputDerivationData(arr[2])
+        });
+      }
     }
 
-    if(type == 'msg' && arr.length == 4) {
-      return Object.assign(head, {
-        derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
-        message: decodeURIComponent(arr[3]),
-      });
+    if(type == 'msg') {
+      if(arr.length == 4) {
+        info = Object.assign(head, {
+          derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
+          message: decodeURIComponent(arr[3]),
+        });
+      }
     }
 
-    if(type == '2fa' && arr.length == 4) {
-      return Object.assign(head, {
-        derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
-        message: decodeURIComponent(arr[3]),
-      });
+    if(type == '2fa') {
+      if(arr.length == 4) {
+        info = Object.assign(head, {
+          derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
+          message: decodeURIComponent(arr[3]),
+        });
+      }
     }
 
-    if(type == 'val' && arr.length == 3) {
-      return Object.assign(head, {
-        derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
-      });
+    if(type == 'val') {
+      if(arr.length == 3) {
+        info = Object.assign(head, {
+          derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
+        });
+      }
     }
 
-    return head;
+    if(info !== {}) {
+      throw('Incompatible data format. Please upgrade your wallet and vault to the latest version.');
+    }
+
+    return info;
   }
 
   var parsedData = parse(coinIdData);
