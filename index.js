@@ -237,59 +237,43 @@ var infoFromCoinId = function(coinIdData) {
       ownerCheck: arr[1]
     }
 
-    var info = {};
-
-    if(type == 'tx') {
-      if( arr.length === 7 ) {
-        info = Object.assign(head, {
-          inputDerivationPathArr: parseInputDerivationData(arr[2]),
-          txHex: arr[3],
-          changeOutputIndexArr: parseOutputIndexData(arr[4]),
-          inputValueArr: parseInputValueData(arr[5]),
-          changeDerivationPathArr: parseInputDerivationData(arr[6]),
-        });
-      }
+    if(type == 'tx' && arr.length === 7) {
+      return Object.assign(head, {
+        inputDerivationPathArr: parseInputDerivationData(arr[2]),
+        txHex: arr[3],
+        changeOutputIndexArr: parseOutputIndexData(arr[4]),
+        inputValueArr: parseInputValueData(arr[5]),
+        changeDerivationPathArr: parseInputDerivationData(arr[6]),
+      });
     }
 
-    if(type == 'pub') {
-     if(arr.length == 3) {
-        info = Object.assign(head, {
-          derivationPathArr: parseInputDerivationData(arr[2])
-        });
-      }
+    if(type == 'pub' && arr.length == 3) {
+      return Object.assign(head, {
+        derivationPathArr: parseInputDerivationData(arr[2])
+      });
     }
 
-    if(type == 'msg') {
-      if(arr.length == 4) {
-        info = Object.assign(head, {
-          derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
-          message: decodeURIComponent(arr[3]),
-        });
-      }
+    if(type == 'msg' && arr.length == 4) {
+      return Object.assign(head, {
+        derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
+        message: decodeURIComponent(arr[3]),
+      });
     }
 
-    if(type == '2fa') {
-      if(arr.length == 4) {
-        info = Object.assign(head, {
-          derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
-          message: decodeURIComponent(arr[3]),
-        });
-      }
+    if(type == '2fa' && arr.length == 4) {
+      return Object.assign(head, {
+        derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
+        message: decodeURIComponent(arr[3]),
+      });
     }
 
-    if(type == 'val') {
-      if(arr.length == 3) {
-        info = Object.assign(head, {
-          derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
-        });
-      }
+    if(type == 'val' && arr.length == 3) {
+      return Object.assign(head, {
+        derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
+      });
     }
 
-    if(info !== {}) {
-      throw('Incompatible data format. Please upgrade your wallet and vault to the latest version.');
-    }
-
-    return info;
+    throw('Incompatible data format. Please upgrade your wallet and vault to the latest version.');
   }
 
   var parsedData = parse(coinIdData);
