@@ -8,7 +8,11 @@ import bip39 from 'react-native-bip39'
 const bitcoin        = require('bitcoinjs-lib');
 const bitcoinMessage = require('bitcoinjs-message');
 const md5            = require('md5');
+const bip38          = require('bip38');
+const wif            = require('wif');
+
 import { getAddInputFunctionFromDerivation, getAddressFunctionFromDerivation, getSignInputFunctionFromDerivation } from 'coinid-address-types'
+import { addressFunctionP2PKH, addressFunctionP2SHP2WPKH, addressFunctionP2WPKH } from 'coinid-address-functions';
 
 const supportedNetworks = {
   'xmy': bitcoin.networks.myriad,
@@ -361,6 +365,138 @@ var getAddressFromDerivationPath = function(derivationPath, network, mnemonic) {
   return hdNode.getAddress();
 }
 
+var deriveAddressesFromWif = function(decryptedWif, network) {
+  if (!decryptedWif) {
+    return [];
+  }
+
+  const addresses = [];
+  const node = bitcoin.ECPair.fromWIF(decryptedWif, network);
+
+  addresses.push({
+    type: 'P2PKH',
+    address: addressFunctionP2PKH(node),
+  });
+
+  if (node.compressed) {
+    addresses.push({
+      type: 'P2SHP2WPKH',
+      address: addressFunctionP2SHP2WPKH(node),
+    });
+
+    addresses.push({
+      type: 'P2WPKH',
+      address: addressFunctionP2WPKH(node),
+    });
+  }
+
+  return addresses;
+};
+
+var isBIP38Format = function(data) {
+  return (/^6P[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{56}$/.test(data));
+};
+
+var isValidWif = function(data, network) {
+  try {
+    bitcoin.ECPair.fromWIF(data, network);
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
+
+var decryptBIP38 = function (encryptedWif, password, network) {
+  try {
+    const { privateKey, compressed } = bip38.decrypt(encryptedWif, password, network);
+    const decryptedWif = wif.encode(network.wif, privateKey, compressed, network);
+    return decryptedWif;
+  } catch (err) {
+    return false;
+  }
+}
+
+var parseSweepKeyData = function(keyData, password, network, address) {
+  if (isBIP38Format(keyData)) {
+    if(!bip38.verify(keyData, address)) {
+      console.log({keyData, address});
+      throw('BIP38 verification error');
+    }
+
+    if(password === undefined) {
+      return {
+        encryptedWif: keyData,
+      };
+    }
+
+    return {
+      encryptedWif: keyData,
+      decryptedWif: decryptBIP38(keyData, password, network),
+    };
+  }
+
+  if (isValidWif(keyData, network)) {
+    return {
+      decryptedWif: keyData,
+    };
+  }
+
+  throw('Could not parse keydata');
+}
+
+var parseQsParamFromUrl = function(key, string) {
+  if(!string) {
+    return {};
+  }
+
+  const regexp = new RegExp(`(${key})=([^&]{1,})`, 'i');
+  const [, , value] = string.match(regexp) || [];
+
+  if(!value) {
+    return {};
+  }
+
+  return {
+    [key]: decodeURIComponent(value),
+  };
+};
+
+var parseSweepDataQs = function(qs) {
+  if(!qs) {
+    return {};
+  }
+
+  return {
+    ...parseQsParamFromUrl('message', qs),
+    ...parseQsParamFromUrl('hint', qs),
+    ...parseQsParamFromUrl('address', qs),
+  };
+}
+
+var parseSweepDataInfo = function(sweepData) {
+  const [, keyData, qs] = sweepData.match(/([^?]{1,})(\?.*)?/i) || [];
+  const params = parseSweepDataQs(qs);
+
+  return {
+    keyData,
+    params,
+  }
+}
+
+var parseSweepData = function(sweepData, password, network) {
+  const { params, keyData } = parseSweepDataInfo(sweepData);
+
+  const {decryptedWif, encryptedWif} = parseSweepKeyData(keyData, password, network, params.address);
+  const addresses = deriveAddressesFromWif(decryptedWif, network);
+
+  return {
+    decryptedWif,
+    encryptedWif,
+    addresses,
+    params,
+  };
+}
+
 /**
  * Module exports...
  */
@@ -374,6 +510,7 @@ module.exports = function(coinIdData) {
     generateMnemonic: () => generateMnemonic(),
     getBasePublicKey: (mnemonic) => getBasePublicKey(info.network, mnemonic),
     verifyOwner: (mnemonic) => verifyOwner(info.ownerCheck, info.network, mnemonic),
+    parseSweepData: (data, password) => parseSweepData(data, password, info.network),
 
     // pub
     getPublicKey: (mnemonic) => createPublicKeysFromDerivationPaths(info.derivationPathArr, info.network, mnemonic),
