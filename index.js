@@ -11,16 +11,10 @@ import {
   getSignInputFunctionFromDerivation,
 } from 'coinid-address-types';
 
-import {
-  addressFunctionP2PKH,
-  addressFunctionP2SHP2WPKH,
-  addressFunctionP2WPKH,
-} from 'coinid-address-functions';
-
 const bitcoin = require('bitcoinjs-lib');
 const bitcoinMessage = require('bitcoinjs-message');
 const md5 = require('md5');
-const bip38 = require('bip38');
+const bip38 = require('bip38-async');
 const wif = require('wif');
 
 const supportedNetworks = {

@@ -20,9 +20,9 @@ bindings@^1.2.1:
   version "1.3.0"
   resolved "https://registry.yarnpkg.com/bindings/-/bindings-1.3.0.tgz#b346f6ecf6a95f5a815c5839fc7cdb22502f1ed7"
 
-"bip38@https://github.com/COINiD/bip38":
+"bip38-async@https://github.com/COINiD/bip38-async":
   version "2.0.2"
-  resolved "https://github.com/COINiD/bip38#7b1b49d7f16e63542947b34a04a15902c7a96f2b"
+  resolved "https://github.com/COINiD/bip38-async#84de91f6d5516e0fa6a9b7b351bf951c7047992d"
   dependencies:
     bigi "^1.2.0"
     browserify-aes "^1.0.1"
@@ -30,7 +30,7 @@ bindings@^1.2.1:
     buffer-xor "^1.0.2"
     create-hash "^1.1.1"
     ecurve "^1.0.0"
-    scryptsy "^2.0.0"
+    scryptsy-async "https://github.com/COINiD/scryptsy-async"
 
 bip39@^2.4.0:
   version "2.5.0"
@@ -137,7 +137,7 @@ cipher-base@^1.0.0, cipher-base@^1.0.1, cipher-base@^1.0.3:
 
 "coinid-address-functions@https://github.com/wlc-/coinid-address-functions.git":
   version "1.0.0"
-  resolved "https://github.com/wlc-/coinid-address-functions.git#9586117837bd6fd85ac7497c7d6bf994ce1514e6"
+  resolved "https://github.com/wlc-/coinid-address-functions.git#f97e21ff3bc8b78b98754455eaff885c0196784f"
 
 "coinid-address-types@https://github.com/wlc-/coinid-address-types.git":
   version "1.0.0"
@@ -303,10 +303,9 @@ safe-buffer@^5.0.1, safe-buffer@^5.1.0, safe-buffer@^5.1.1, safe-buffer@^5.1.2:
   version "5.1.2"
   resolved "https://registry.yarnpkg.com/safe-buffer/-/safe-buffer-5.1.2.tgz#991ec69d296e0313747d59bdfd2b745c35f8828d"
 
-scryptsy@^2.0.0:
+"scryptsy-async@https://github.com/COINiD/scryptsy-async":
   version "2.0.0"
-  resolved "https://registry.yarnpkg.com/scryptsy/-/scryptsy-2.0.0.tgz#262c36f0231cfa7654e2363fa394cd2dec66f378"
-  integrity sha1-Jiw28CMc+nZU4jY/o5TNLexm83g=
+  resolved "https://github.com/COINiD/scryptsy-async#ad47ddcc7da820cd520183f2607ca242b82b84c9"
 
 secp256k1@^3.0.1:
   version "3.5.2"
