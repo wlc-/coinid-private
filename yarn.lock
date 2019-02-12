@@ -141,7 +141,7 @@ cipher-base@^1.0.0, cipher-base@^1.0.1, cipher-base@^1.0.3:
 
 "coinid-address-types@https://github.com/wlc-/coinid-address-types.git":
   version "1.0.0"
-  resolved "https://github.com/wlc-/coinid-address-types.git#46a16c7a2e124a6f9d2b1ff95ab461253fdaf156"
+  resolved "https://github.com/wlc-/coinid-address-types.git#03291bbae55ffe86b9fcff795338f9b5c7f9b791"
   dependencies:
     coinid-address-functions "https://github.com/wlc-/coinid-address-functions.git"
 
