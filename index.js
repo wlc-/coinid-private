@@ -1,231 +1,240 @@
-"use strict"
-
 /**
-* Lib for CoinID
-*/
+ * Lib for CoinID
+ */
 
-import bip39 from 'react-native-bip39'
-const bitcoin        = require('bitcoinjs-lib');
+import bip39 from 'react-native-bip39';
+
+import {
+  getAddressTypeInfo,
+  getAddInputFunctionFromDerivation,
+  getAddressFunctionFromDerivation,
+  getSignInputFunctionFromDerivation,
+} from 'coinid-address-types';
+
+import {
+  addressFunctionP2PKH,
+  addressFunctionP2SHP2WPKH,
+  addressFunctionP2WPKH,
+} from 'coinid-address-functions';
+
+const bitcoin = require('bitcoinjs-lib');
 const bitcoinMessage = require('bitcoinjs-message');
-const md5            = require('md5');
-const bip38          = require('bip38');
-const wif            = require('wif');
-
-import { getAddressTypeInfo, getAddInputFunctionFromDerivation, getAddressFunctionFromDerivation, getSignInputFunctionFromDerivation } from 'coinid-address-types'
-import { addressFunctionP2PKH, addressFunctionP2SHP2WPKH, addressFunctionP2WPKH } from 'coinid-address-functions';
+const md5 = require('md5');
+const bip38 = require('bip38');
+const wif = require('wif');
 
 const supportedNetworks = {
-  'xmy': bitcoin.networks.myriad,
-  'btc': bitcoin.networks.bitcoin,
-  'tbtc': bitcoin.networks.testnet,
-  'grs': bitcoin.networks.groestlcoin,
-  'tgrs': bitcoin.networks["groestlcoin-testnet"]
-}
+  xmy: bitcoin.networks.myriad,
+  btc: bitcoin.networks.bitcoin,
+  tbtc: bitcoin.networks.testnet,
+  grs: bitcoin.networks.groestlcoin,
+  tgrs: bitcoin.networks['groestlcoin-testnet'],
+};
 
 /**
  * Generates Mnemonic based on bip39
  */
-var generateMnemonic = function() {
+const generateMnemonic = function () {
   try {
-    return bip39.generateMnemonic(128) // default to 128
-  } catch(e) {
-    return false
+    return bip39.generateMnemonic(128); // default to 128
+  } catch (e) {
+    return false;
   }
-}
+};
 
 /**
  * Retrieves network parameters from ticker string
  */
-var getNetworkFromTicker = function(ticker) {
+const getNetworkFromTicker = function (ticker) {
   return supportedNetworks[ticker.toLowerCase()];
 };
 
 /**
  * Gets Address from script
  */
-var scriptToAddress = function(script, network) {
+const scriptToAddress = function (script, network) {
   return bitcoin.address.fromOutputScript(script, network);
-}
+};
 
-var getBasePublicKey = function(network, mnemonic) {
-  var hdNode = getBaseHDNode(network, mnemonic);
+const getBasePublicKey = function (network, mnemonic) {
+  const hdNode = getBaseHDNode(network, mnemonic);
   return hdNode.neutered().toBase58();
-}
+};
 
-var getHdNodeFromPublicKey = function(network, pubKey) {
-  var hdNode = bitcoin.HDNode.fromBase58(pubKey, network)
+const getHdNodeFromPublicKey = function (network, pubKey) {
+  const hdNode = bitcoin.HDNode.fromBase58(pubKey, network);
   return hdNode;
-}
+};
 
-var verifyOwner = function(ownerCheck, network, mnemonic) {
-  if(ownerCheck) {
-    var hdNode = getBaseHDNode(network, mnemonic);
-    var { derivationPath, address } = parseOwnerCheck(ownerCheck);
-    var derivedNode = hdNode.derivePath(derivationPath);
+const verifyOwner = function (ownerCheck, network, mnemonic) {
+  if (ownerCheck) {
+    const { derivationPath, address } = parseOwnerCheck(ownerCheck);
 
-    var derivedAddress = getAddressFunctionFromDerivation(derivationPath)(derivedNode);
-    var shortenedAddress = derivedAddress.substr(0, address.length);
+    const derivedNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
 
-    if(shortenedAddress.toUpperCase() !== address.toUpperCase()) {
-      throw('Wallet not created from this COINiD');
+    const derivedAddress = getAddressFunctionFromDerivation(derivationPath)(derivedNode);
+    const shortenedAddress = derivedAddress.substr(0, address.length);
+
+    if (shortenedAddress.toUpperCase() !== address.toUpperCase()) {
+      throw 'Wallet not created from this COINiD';
     }
   }
 
   return true;
-}
+};
 
-var parseOwnerCheck = function(ownerCheck) {
-  var splitData = ownerCheck.split('+');
-  var derivationPath = reverseQrFriendlyDerivationPath(splitData[0]);
-  var address = splitData[1];
+var parseOwnerCheck = function (ownerCheck) {
+  const splitData = ownerCheck.split('+');
+  const derivationPath = reverseQrFriendlyDerivationPath(splitData[0]);
+  const address = splitData[1];
 
   return {
     derivationPath,
-    address
-  }
-}
+    address,
+  };
+};
 
-var cachedHDNodeMap = {};
+const cachedHDNodeMap = {};
 
-var getCachedHDNodeKey = (derivationPath, network, mnemonic) => {
-  return md5(derivationPath + network.ticker + mnemonic);
-}
+const getCachedHDNodeKey = (derivationPath, network, mnemonic) => md5(derivationPath + network.ticker + mnemonic);
 
-var getCachedHDNode = (derivationPath, network, mnemonic) => {
-  var cacheKey = getCachedHDNodeKey(derivationPath, network, mnemonic);
+const getCachedHDNode = (derivationPath, network, mnemonic) => {
+  const cacheKey = getCachedHDNodeKey(derivationPath, network, mnemonic);
   return cachedHDNodeMap[cacheKey];
-}
+};
 
-var setCachedHDNode = (hdNode, derivationPath, network, mnemonic) => {
-  var cacheKey = getCachedHDNodeKey(derivationPath, network, mnemonic);
+const setCachedHDNode = (hdNode, derivationPath, network, mnemonic) => {
+  const cacheKey = getCachedHDNodeKey(derivationPath, network, mnemonic);
   cachedHDNodeMap[cacheKey] = hdNode;
-}
+};
 
 /**
  * Creates HDNode from mnemonic
  */
-var getBaseHDNode = function(network, mnemonic) {
-  var hdNode = getCachedHDNode('m', network, mnemonic);
+var getBaseHDNode = function (network, mnemonic) {
+  let hdNode = getCachedHDNode('m', network, mnemonic);
 
-  if(hdNode === undefined) {
-    hdNode = bitcoin.HDNode.fromSeedBuffer(
-      bip39.mnemonicToSeed(mnemonic),
-      network
-    );
+  if (hdNode === undefined) {
+    hdNode = bitcoin.HDNode.fromSeedBuffer(bip39.mnemonicToSeed(mnemonic), network);
     setCachedHDNode(hdNode, 'm', network, mnemonic);
   }
 
   return hdNode;
-}
+};
 
 /**
  * Gets keyPair from derivation path and Mnemonic
  */
-var createHDNodeFromDerivationPath = function(derivationPath, network, mnemonic) {
+const createHDNodeFromDerivationPath = function (derivationPath, network, mnemonic) {
   var cachedHDNode = getCachedHDNode(derivationPath, network, mnemonic);
-  if(cachedHDNode !== undefined) {
+  if (cachedHDNode !== undefined) {
     return cachedHDNode;
   }
 
-  var currentHDNode = getBaseHDNode(network, mnemonic);
+  let currentHDNode = getBaseHDNode(network, mnemonic);
 
-  var splitPath = derivationPath.split('/');
+  let splitPath = derivationPath.split('/');
   if (splitPath[0] === 'm') {
     splitPath = splitPath.slice(1);
   }
 
-  for (var i = 0; i < splitPath.length; i++) {
-    var path = splitPath[i];
-    var fullPath = 'm/'+splitPath.slice(0, i+1).join('/');
+  for (let i = 0; i < splitPath.length; i++) {
+    const path = splitPath[i];
+    const fullPath = `m/${splitPath.slice(0, i + 1).join('/')}`;
 
     var cachedHDNode = getCachedHDNode(fullPath, network, mnemonic);
-    if(cachedHDNode === undefined) {
+    if (cachedHDNode === undefined) {
       currentHDNode = currentHDNode.derivePath(path);
       setCachedHDNode(currentHDNode, fullPath, network, mnemonic);
-    }
-    else {
+    } else {
       currentHDNode = cachedHDNode;
     }
   }
   return currentHDNode;
-}
-
-
+};
 
 /**
  * Creates Public Keys for purposeArr which can derive chain and index. This is transfered to the wallet to set up an account..
  */
-var createPublicKeysFromDerivationPaths = function(derivationPathArr, network, mnemonic) {
-  return derivationPathArr.map(derivationPath => {
-    var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
+const createPublicKeysFromDerivationPaths = function (derivationPathArr, network, mnemonic) {
+  return derivationPathArr.map((derivationPath) => {
+    const hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
 
     return {
-      derivationPath: derivationPath,
-      publicKey: hdNode.neutered().toBase58()
-    }
+      derivationPath,
+      publicKey: hdNode.neutered().toBase58(),
+    };
   });
-}
+};
 
-var reverseQrFriendlyDerivationPath = function(qrFriendlyDerivationPath) {
-  return 'm/'+qrFriendlyDerivationPath.replace(new RegExp('\\*', 'g'), '/').replace(new RegExp('\\-', 'g'), '\'');
-}
+var reverseQrFriendlyDerivationPath = function (qrFriendlyDerivationPath) {
+  return `m/${qrFriendlyDerivationPath
+    .replace(new RegExp('\\*', 'g'), '/')
+    .replace(new RegExp('\\-', 'g'), "'")}`;
+};
 
-var getQrFriendlyDerivationPath = function(derivationPath) {
+const getQrFriendlyDerivationPath = function (derivationPath) {
   return derivationPath
-  .replace(new RegExp('^m\/', 'g'), '')
-  .replace(new RegExp('\/', 'g'), '*')
-  .replace(new RegExp('\'', 'g'), '-');
-}
+    .replace(new RegExp('^m/', 'g'), '')
+    .replace(new RegExp('/', 'g'), '*')
+    .replace(new RegExp("'", 'g'), '-');
+};
 
-/** - coinData innehåller fee också då vi inte kan ta reda på detta offline annars.. kanske unsafe... om coinid är online så bör vi kanske hämta fee från blockchain
- *                                       [inputDerivationData]                                        [changeOutputIndexData]
- * Structure of signTx = [type]/[ticker].[derivationPath+derivationPath+derivationPath].[unsignedHex].[index+index+index].[fee]
- * Structure of getPubKey = [type]/[ticker].[derivationPath+derivationPath] // vid skapandet av wallet..
- * Structure of signMsg = [type]/[ticker].[derivationPath].message
- *
- * derivationPath:
- * seperator: *
- * hardened indicator: -
- * example: 44-*90-*0-*1*2 = 44'/90'/0'/1/2
- *
- * types = tx, pub, msg
- *
- */
-var infoFromCoinId = function(coinIdData) {
+const infoFromCoinId = function (coinIdData) {
   coinIdData = coinIdData || '';
   // parses addressData fields in coinIdData
 
-
-  var splitData = coinIdData.split('/');
-  var type = splitData[0] || '';
+  const splitData = coinIdData.split('/');
+  let type = splitData[0] || '';
   type = type.toLowerCase();
-  coinIdData = splitData[1] || '';
+  coinIdData = splitData[1] || '';
 
-  var parseOutputIndexData = inputData => !inputData ? [] : inputData.split('+').map(Number);
-  var parseInputDerivationData = inputData => !inputData ? [] : inputData.split('+').map(reverseQrFriendlyDerivationPath);
-  var parseInputValueData = inputData => !inputData ? [] : inputData.split('+').map(Number);
+  const parseOutputIndexData = inputData => (!inputData ? [] : inputData.split('+').map(Number));
+  const parseInputDerivationData = inputData => (!inputData ? [] : inputData.split('+').map(reverseQrFriendlyDerivationPath));
+  const parseInputValueData = inputData => (!inputData ? [] : inputData.split('+').map(Number));
+  const parseSwpTxInputData = (inputData) => {
+    const [type, address, hash, index, satValue] = inputData.split('*');
 
-  var parse = cid => {
-    var arr = cid.split(':');
-    var ticker = arr[0].toLowerCase();
-    var network = getNetworkFromTicker(ticker);
+    return {
+      type,
+      address,
+      hash,
+      index: Number(index),
+      satValue: Number(satValue),
+    };
+  };
+  const parseSwpTxInputDataArr = inputData => (!inputData ? [] : inputData.split('+').map(parseSwpTxInputData));
+  const parseSwpTxOutputData = (inputData) => {
+    const [address, qrFriendlyDerivationPath, satValue] = inputData.split('+');
 
-    if(arr.length < 3) {
-      throw('Data not formatted correctly');
+    return {
+      address,
+      derivationPath: reverseQrFriendlyDerivationPath(qrFriendlyDerivationPath),
+      satValue: Number(satValue),
+    };
+  };
+
+  const parse = (cid) => {
+    const arr = cid.split(':');
+    const ticker = arr[0].toLowerCase();
+    const network = getNetworkFromTicker(ticker);
+
+    if (arr.length < 3) {
+      throw 'Data not formatted correctly';
     }
 
-    if(!network) {
-      throw('Unsupported coin');
+    if (!network) {
+      throw 'Unsupported coin';
     }
 
-    var head = {
-      type: type,
-      network: network,
+    const head = {
+      type,
+      network,
       ticker: arr[0],
-      ownerCheck: arr[1]
-    }
+      ownerCheck: arr[1],
+    };
 
-    if(type == 'tx' && arr.length == 6) {
+    if (type == 'tx' && arr.length == 6) {
       return Object.assign(head, {
         inputDerivationPathArr: parseInputDerivationData(arr[2]),
         txHex: arr[3],
@@ -234,64 +243,71 @@ var infoFromCoinId = function(coinIdData) {
       });
     }
 
-    if(type == 'pub' && arr.length == 3) {
+    if (type == 'pub' && arr.length == 3) {
       return Object.assign(head, {
-        derivationPathArr: parseInputDerivationData(arr[2])
+        derivationPathArr: parseInputDerivationData(arr[2]),
       });
     }
 
-    if(type == 'msg' && arr.length == 4) {
+    if (type == 'msg' && arr.length == 4) {
       return Object.assign(head, {
         derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
         message: decodeURIComponent(arr[3]),
       });
     }
 
-    if(type == '2fa' && arr.length == 4) {
+    if (type == '2fa' && arr.length == 4) {
       return Object.assign(head, {
         derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
         message: decodeURIComponent(arr[3]),
       });
     }
 
-    if(type == 'val' && arr.length == 3) {
+    if (type == 'val' && arr.length == 3) {
       return Object.assign(head, {
         derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
+      });
+    }
+
+    if (type == 'swptx' && arr.length == 4) {
+      return Object.assign(head, {
+        outputInfo: parseSwpTxOutputData(arr[2]),
+        inputInfoArr: parseSwpTxInputDataArr(arr[3]),
       });
     }
 
     return head;
-  }
+  };
 
-  var parsedData = parse(coinIdData);
+  const parsedData = parse(coinIdData);
 
   return parsedData;
-}
+};
 
 /**
  * Gets information from a Raw TX Hex
  */
-var infoFromTxHex = function(txHex, network, changeOutputIndexArr, inputValueArr) {
-  var tx = bitcoin.Transaction.fromHex(txHex, network);
+const infoFromTxHex = function (txHex, network, changeOutputIndexArr, inputValueArr) {
+  const tx = bitcoin.Transaction.fromHex(txHex, network);
 
-  var mapOutputs = o => ({
+  const mapOutputs = o => ({
     address: scriptToAddress(o.script, network),
-    amount: o.value
+    amount: o.value,
   });
 
-  var removeChange = (o, i) => !changeOutputIndexArr.includes(i);
-  var removeExternal = (o, i) => !removeChange(o, i);
+  const removeChange = (o, i) => !changeOutputIndexArr.includes(i);
+  const removeExternal = (o, i) => !removeChange(o, i);
 
-  var allOutputs = tx.outs.map(mapOutputs);
-  var externalOutputs = allOutputs.filter(removeChange);
-  var changeOutputs = allOutputs.filter(removeExternal);
+  const allOutputs = tx.outs.map(mapOutputs);
+  const externalOutputs = allOutputs.filter(removeChange);
+  const changeOutputs = allOutputs.filter(removeExternal);
 
-  var allOutputTotal = allOutputs.map(o => o.amount).reduce((sum, val) => sum+val, 0);
-  var externalTotal = externalOutputs.map(o => o.amount).reduce((sum, val) => sum+val, 0);
-  var changeTotal = changeOutputs.map(o => o.amount).reduce((sum, val) => sum+val, 0);
+  const allOutputTotal = allOutputs.map(o => o.amount).reduce((sum, val) => sum + val, 0);
+  const externalTotal = externalOutputs.map(o => o.amount).reduce((sum, val) => sum + val, 0);
+  const changeTotal = changeOutputs.map(o => o.amount).reduce((sum, val) => sum + val, 0);
 
-  var allInputTotal = inputValueArr.reduce((sum, val) => sum+val, 0);
-  var fee = allInputTotal - allOutputTotal;
+  const allInputTotal = inputValueArr.reduce((sum, val) => sum + val, 0);
+  const fee = allInputTotal - allOutputTotal;
 
   return {
     allOutputs,
@@ -301,17 +317,32 @@ var infoFromTxHex = function(txHex, network, changeOutputIndexArr, inputValueArr
     externalTotal,
     changeTotal,
     allInputTotal,
-    fee
-  }
-}
+    fee,
+  };
+};
+
+/**
+ * infoFrominputInfoArr
+ */
+const infoFrominputInfoArr = function (inputInfoArr, outputInfo) {
+  const total = inputInfoArr.reduce((a, {satValue}) => a + satValue, 0);
+
+  return {
+    inputs: inputInfoArr,
+    receiveAddress: outputInfo.address,
+    receiveDerivationPath: outputInfo.derivationPath,
+    outputSat: Number(outputInfo.satValue),
+    fee: Number(total - outputInfo.satValue),
+    total: Number(total),
+  };
+};
 
 /**
  * Signs TX Hex with mnemonic
  */
-var signTx = function(unsignedTxHex, network, inputDerivationPathArr, inputValueArr, mnemonic) {
-
-  var tx = bitcoin.Transaction.fromHex(unsignedTxHex, network);
-  var sendTx = bitcoin.TransactionBuilder.fromTransaction(tx, network);
+const signTx = function (unsignedTxHex, network, inputDerivationPathArr, inputValueArr, mnemonic) {
+  const tx = bitcoin.Transaction.fromHex(unsignedTxHex, network);
+  const sendTx = bitcoin.TransactionBuilder.fromTransaction(tx, network);
   sendTx.maximumFeeRate = 5000;
 
   // because fromHex does not include P2WPKH input correctly we clear and add our inputs again here.
@@ -332,40 +363,49 @@ var signTx = function(unsignedTxHex, network, inputDerivationPathArr, inputValue
     getSignInputFunctionFromDerivation(derivationPath)(sendTx, i, hdNode, inputValueArr[i]);
   });
 
-  let rawTx = sendTx.build().toHex().toUpperCase();
+  const rawTx = sendTx
+    .build()
+    .toHex()
+    .toUpperCase();
   return rawTx;
-}
+};
 
 /**
  * Validate address
  */
-var validateAddress = function(derivationPath, network, mnemonic) {
-  var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
-  var derivedAddress = getAddressFunctionFromDerivation(derivationPath)(hdNode);
+const validateAddress = function (derivationPath, network, mnemonic) {
+  const hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
+  const derivedAddress = getAddressFunctionFromDerivation(derivationPath)(hdNode);
 
   return derivedAddress;
-}
+};
 
 /**
  * Signs message
  */
-var signMessage = function(message, derivationPath, network, mnemonic) {
-  var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
-  var privateKey = hdNode.keyPair.d.toBuffer(32);
-  var signature = bitcoinMessage.sign(message, privateKey, hdNode.keyPair.compressed, network.messagePrefix);
+const signMessage = function (message, derivationPath, network, mnemonic) {
+  const hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
+  const privateKey = hdNode.keyPair.d.toBuffer(32);
+  const signature = bitcoinMessage.sign(
+    message,
+    privateKey,
+    hdNode.keyPair.compressed,
+    network.messagePrefix,
+  );
 
   return signature.toString('base64');
-}
+};
 
 /**
  * Gets Address from derivation path
  */
-var getAddressFromDerivationPath = function(derivationPath, network, mnemonic) {
-  var hdNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
-  return hdNode.getAddress();
-}
+const getAddressFromDerivationPath = function (derivationPath, network, mnemonic) {
+  const derivedNode = createHDNodeFromDerivationPath(derivationPath, network, mnemonic);
+  const derivedAddress = getAddressFunctionFromDerivation(derivationPath)(derivedNode);
+  return derivedAddress;
+};
 
-var deriveAddressesFromWif = function(decryptedWif, network) {
+const deriveAddressesFromWif = function (decryptedWif, network) {
   if (!decryptedWif) {
     return [];
   }
@@ -373,7 +413,7 @@ var deriveAddressesFromWif = function(decryptedWif, network) {
   const addresses = [];
   const node = bitcoin.ECPair.fromWIF(decryptedWif, network);
 
-  network.supportedAddressTypes.forEach(addressType => {
+  network.supportedAddressTypes.forEach((addressType) => {
     try {
       const addressInfo = {
         type: addressType,
@@ -389,11 +429,11 @@ var deriveAddressesFromWif = function(decryptedWif, network) {
   return addresses;
 };
 
-var isBIP38Format = function(data) {
-  return (/^6P[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{56}$/.test(data));
+const isBIP38Format = function (data) {
+  return /^6P[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{56}$/.test(data);
 };
 
-var isValidWif = function(data, network) {
+const isValidWif = function (data, network) {
   try {
     bitcoin.ECPair.fromWIF(data, network);
     return true;
@@ -402,24 +442,25 @@ var isValidWif = function(data, network) {
   }
 };
 
-var decryptBIP38 = function (encryptedWif, password, network) {
+const decryptBIP38 = async function (encryptedWif, password, network, statusCb) {
   try {
-    const { privateKey, compressed } = bip38.decrypt(encryptedWif, password, network);
+    const { privateKey, compressed } = await bip38.decrypt(encryptedWif, password, network, statusCb);
     const decryptedWif = wif.encode(network.wif, privateKey, compressed, network);
     return decryptedWif;
   } catch (err) {
+    console.log({err})
     return false;
   }
-}
+};
 
-var parseSweepKeyData = function(keyData, password, network, address) {
+const parseSweepKeyData = async function (keyData, password, network, address, statusCb) {
   if (isBIP38Format(keyData)) {
-    if(!bip38.verify(keyData, address)) {
-      console.log({keyData, address});
-      throw('BIP38 verification error');
+    if (!bip38.verify(keyData, address)) {
+      console.log({ keyData, address });
+      throw 'BIP38 verification error';
     }
 
-    if(password === undefined) {
+    if (password === undefined) {
       return {
         encryptedWif: keyData,
       };
@@ -427,7 +468,7 @@ var parseSweepKeyData = function(keyData, password, network, address) {
 
     return {
       encryptedWif: keyData,
-      decryptedWif: decryptBIP38(keyData, password, network),
+      decryptedWif: await decryptBIP38(keyData, password, network, statusCb),
     };
   }
 
@@ -437,18 +478,18 @@ var parseSweepKeyData = function(keyData, password, network, address) {
     };
   }
 
-  throw('Could not parse keydata');
-}
+  throw 'Could not parse keydata';
+};
 
-var parseQsParamFromUrl = function(key, string) {
-  if(!string) {
+const parseQsParamFromUrl = function (key, string) {
+  if (!string) {
     return {};
   }
 
   const regexp = new RegExp(`(${key})=([^&]{1,})`, 'i');
   const [, , value] = string.match(regexp) || [];
 
-  if(!value) {
+  if (!value) {
     return {};
   }
 
@@ -457,8 +498,8 @@ var parseQsParamFromUrl = function(key, string) {
   };
 };
 
-var parseSweepDataQs = function(qs) {
-  if(!qs) {
+const parseSweepDataQs = function (qs) {
+  if (!qs) {
     return {};
   }
 
@@ -467,22 +508,29 @@ var parseSweepDataQs = function(qs) {
     ...parseQsParamFromUrl('hint', qs),
     ...parseQsParamFromUrl('address', qs),
   };
-}
+};
 
-var parseSweepDataInfo = function(sweepData) {
-  const [, keyData, qs] = sweepData.match(/([^?]{1,})(\?.*)?/i) || [];
+const parseSweepDataInfo = function (sweepData) {
+  const [, keyData, qs] = sweepData.match(/([^?]{1,})(\?.*)?/i) || [];
   const params = parseSweepDataQs(qs);
 
   return {
     keyData,
     params,
-  }
-}
+  };
+};
 
-var parseSweepData = function(sweepData, password, network) {
+const parseSweepData = async function (sweepData, password, statusCb, network) {
   const { params, keyData } = parseSweepDataInfo(sweepData);
 
-  const {decryptedWif, encryptedWif} = parseSweepKeyData(keyData, password, network, params.address);
+  const { decryptedWif, encryptedWif } = await parseSweepKeyData(
+    keyData,
+    password,
+    network,
+    params.address,
+    statusCb,
+  );
+
   const addresses = deriveAddressesFromWif(decryptedWif, network);
 
   return {
@@ -491,53 +539,111 @@ var parseSweepData = function(sweepData, password, network) {
     addresses,
     params,
   };
-}
+};
 
 /**
  * Module exports...
  */
-module.exports = function(coinIdData) {
-  var info = infoFromCoinId(coinIdData);
+module.exports = function (coinIdData) {
+  const info = infoFromCoinId(coinIdData);
 
   return {
     // general
     getInfo: () => info,
     getAddressFromDerivationPath: (derivationPath, mnemonic) => getAddressFromDerivationPath(info.derivationPath, info.network, mnemonic),
     generateMnemonic: () => generateMnemonic(),
-    getBasePublicKey: (mnemonic) => getBasePublicKey(info.network, mnemonic),
-    verifyOwner: (mnemonic) => verifyOwner(info.ownerCheck, info.network, mnemonic),
-    parseSweepData: (data, password) => parseSweepData(data, password, info.network),
+    getBasePublicKey: mnemonic => getBasePublicKey(info.network, mnemonic),
+    verifyOwner: mnemonic => verifyOwner(info.ownerCheck, info.network, mnemonic),
 
     // pub
-    getPublicKey: (mnemonic) => createPublicKeysFromDerivationPaths(info.derivationPathArr, info.network, mnemonic),
+    getPublicKey: mnemonic => createPublicKeysFromDerivationPaths(info.derivationPathArr, info.network, mnemonic),
 
     // tx
     getTxInfo: () => infoFromTxHex(info.txHex, info.network, info.changeOutputIndexArr, info.inputValueArr),
-    signTx: (mnemonic) => signTx(info.txHex, info.network, info.inputDerivationPathArr, info.inputValueArr, mnemonic),
+    signTx: mnemonic => signTx(info.txHex, info.network, info.inputDerivationPathArr, info.inputValueArr, mnemonic),
+
+    // swp
+    parseSweepData: (data, password, statusCb) => parseSweepData(data, password, statusCb, info.network),
+
+    // swptx
+    createSweepTx: (mnemonic, { wif }) => {
+      if(!wif) {
+        throw 'Sweeped private key missing';
+      }
+
+      const network = info.network;
+
+      const swpTxInfo = infoFrominputInfoArr(info.inputInfoArr, info.outputInfo);
+      const verifiedReceiveAddress = getAddressFromDerivationPath(swpTxInfo.receiveDerivationPath, network, mnemonic);
+
+      if (verifiedReceiveAddress !== swpTxInfo.receiveAddress) {
+        throw 'Receive address does not belong to this Vault';
+      }
+
+      const node = bitcoin.ECPair.fromWIF(wif, network);
+
+      const sendTx = new bitcoin.TransactionBuilder(info.network);
+
+      const amountSat = swpTxInfo.outputSat;
+      const feeSat = swpTxInfo.fee;
+      const requiredSat = swpTxInfo.total;
+
+      sendTx.addOutput(verifiedReceiveAddress, amountSat);
+
+      swpTxInfo.inputs.forEach((input, i) => {
+        const sequence = 0xffffffff;
+        const { addInputFunction } = getAddressTypeInfo(input.type);
+        addInputFunction(sendTx, input, sequence, node);
+      });
+
+      swpTxInfo.inputs.forEach((input, i) => {
+        const { signInputFunction } = getAddressTypeInfo(input.type);
+        signInputFunction(sendTx, i, node, input.satValue);
+      });
+
+      return sendTx
+        .build()
+        .toHex()
+        .toUpperCase();
+    },
+
+    getSwpTxInfo: () => infoFrominputInfoArr(info.inputInfoArr, info.outputInfo),
 
     // val
-    validateAddress: (mnemonic) => validateAddress(info.derivationPath, info.network, mnemonic),
+    validateAddress: mnemonic => validateAddress(info.derivationPath, info.network, mnemonic),
 
     // msg
-    signMessage: (mnemonic) => signMessage(info.message, info.derivationPath, info.network, mnemonic),
+    signMessage: mnemonic => signMessage(info.message, info.derivationPath, info.network, mnemonic),
 
     // get requested data based on type
-    getReturnData: function (mnemonic) {
+    getReturnData(mnemonic, extraData) {
       return new Promise((resolve, reject) => {
-        if(info.type === 'sah') { // simple auth skips ownercheck...
+        if (info.type === 'sah') {
+          // simple auth skips ownercheck...
           return resolve(info.message);
         }
 
-        if(this.verifyOwner(mnemonic)) {
-          switch(info.type) {
-            case 'tx': return resolve(this.signTx(mnemonic));
-            case 'val': return resolve(this.validateAddress(mnemonic));
-            case 'msg': return resolve(this.signMessage(mnemonic));
-            case '2fa': return resolve(this.signMessage(mnemonic));
-            case 'pub': return resolve(this.getPublicKey(mnemonic).map((p) => getQrFriendlyDerivationPath(p.derivationPath) + '$' + p.publicKey).join('+'));
+        if (this.verifyOwner(mnemonic)) {
+          switch (info.type) {
+            case 'tx':
+              return resolve(this.signTx(mnemonic));
+            case 'swptx':
+              return resolve(this.createSweepTx(mnemonic, extraData));
+            case 'val':
+              return resolve(this.validateAddress(mnemonic));
+            case 'msg':
+              return resolve(this.signMessage(mnemonic));
+            case '2fa':
+              return resolve(this.signMessage(mnemonic));
+            case 'pub':
+              return resolve(
+                this.getPublicKey(mnemonic)
+                  .map(p => `${getQrFriendlyDerivationPath(p.derivationPath)}$${p.publicKey}`)
+                  .join('+'),
+              );
           }
         }
-      })
+      });
     },
-  }
-}
+  };
+};
