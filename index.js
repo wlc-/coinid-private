@@ -11,7 +11,7 @@ const md5            = require('md5');
 const bip38          = require('bip38');
 const wif            = require('wif');
 
-import { getAddInputFunctionFromDerivation, getAddressFunctionFromDerivation, getSignInputFunctionFromDerivation } from 'coinid-address-types'
+import { getAddressTypeInfo, getAddInputFunctionFromDerivation, getAddressFunctionFromDerivation, getSignInputFunctionFromDerivation } from 'coinid-address-types'
 import { addressFunctionP2PKH, addressFunctionP2SHP2WPKH, addressFunctionP2WPKH } from 'coinid-address-functions';
 
 const supportedNetworks = {
@@ -373,22 +373,18 @@ var deriveAddressesFromWif = function(decryptedWif, network) {
   const addresses = [];
   const node = bitcoin.ECPair.fromWIF(decryptedWif, network);
 
-  addresses.push({
-    type: 'P2PKH',
-    address: addressFunctionP2PKH(node),
+  network.supportedAddressTypes.forEach(addressType => {
+    try {
+      const addressInfo = {
+        type: addressType,
+        address: getAddressTypeInfo(addressType).addressFunction(node),
+      };
+      addresses.push(addressInfo);
+    } catch (err) {
+      // catches error cannot derive address. usually if node is uncompressed and trying to derive segwit
+      console.log(`${err}`);
+    }
   });
-
-  if (node.compressed) {
-    addresses.push({
-      type: 'P2SHP2WPKH',
-      address: addressFunctionP2SHP2WPKH(node),
-    });
-
-    addresses.push({
-      type: 'P2WPKH',
-      address: addressFunctionP2WPKH(node),
-    });
-  }
 
   return addresses;
 };
