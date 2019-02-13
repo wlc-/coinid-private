@@ -427,10 +427,9 @@ const isBIP38Format = function (data) {
   return /^6P[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{56}$/.test(data);
 };
 
-const isValidWif = function (data, network) {
+const getECPairFromWif = function (data, network) {
   try {
-    bitcoin.ECPair.fromWIF(data, network);
-    return true;
+    return bitcoin.ECPair.fromWIF(data, network);
   } catch (err) {
     return false;
   }
@@ -447,32 +446,42 @@ const decryptBIP38 = async function (encryptedWif, password, network, statusCb) 
   }
 };
 
+const isCompressed = (node) => (node.keyPair && node.keyPair.compressed) ? true : node.compressed;
+
 const parseSweepKeyData = async function (keyData, password, network, address, statusCb) {
-  if (isBIP38Format(keyData)) {
-    if (!bip38.verify(keyData, address)) {
-      console.log({ keyData, address });
+  let encryptedWif;
+  let decryptedWif;
+
+  if(isBIP38Format(keyData)) {
+    encryptedWif = keyData;
+
+    if (!bip38.verify(encryptedWif, address)) {
       throw 'BIP38 verification error';
     }
 
-    if (password === undefined) {
-      return {
-        encryptedWif: keyData,
-      };
-    }
+    decryptedWif = await decryptBIP38(encryptedWif, password, network, statusCb);
+  }
+  else {
+    decryptedWif = keyData;
+  }
 
+  if(!decryptedWif) {
     return {
-      encryptedWif: keyData,
-      decryptedWif: await decryptBIP38(keyData, password, network, statusCb),
+      encryptedWif,
     };
   }
 
-  if (isValidWif(keyData, network)) {
-    return {
-      decryptedWif: keyData,
-    };
+  const keyPair = getECPairFromWif(decryptedWif, network);
+
+  if(!keyPair) {
+    throw 'Could not parse keydata';
   }
 
-  throw 'Could not parse keydata';
+  return {
+    encryptedWif,
+    decryptedWif,
+    compressed: isCompressed(keyPair),
+  };
 };
 
 const parseQsParamFromUrl = function (key, string) {
@@ -517,7 +526,7 @@ const parseSweepDataInfo = function (sweepData) {
 const parseSweepData = async function (sweepData, password, statusCb, network) {
   const { params, keyData } = parseSweepDataInfo(sweepData);
 
-  const { decryptedWif, encryptedWif } = await parseSweepKeyData(
+  const { decryptedWif, encryptedWif, compressed } = await parseSweepKeyData(
     keyData,
     password,
     network,
@@ -530,6 +539,7 @@ const parseSweepData = async function (sweepData, password, statusCb, network) {
   return {
     decryptedWif,
     encryptedWif,
+    compressed,
     addresses,
     params,
   };
