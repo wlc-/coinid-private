@@ -276,6 +276,13 @@ const infoFromCoinId = function(coinIdData) {
       });
     }
 
+    if (type == "sah" && arr.length == 4) {
+      return Object.assign(head, {
+        derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
+        message: decodeURIComponent(arr[3])
+      });
+    }
+
     if (type == "2fa" && arr.length == 4) {
       return Object.assign(head, {
         derivationPath: reverseQrFriendlyDerivationPath(arr[2]),
@@ -497,7 +504,6 @@ const deriveAddressesFromWif = function(decryptedWif, network) {
       addresses.push(addressInfo);
     } catch (err) {
       // catches error cannot derive address. usually if node is uncompressed and trying to derive segwit
-      console.log(`${err}`);
     }
   });
 
@@ -669,6 +675,17 @@ module.exports = function(coinIdData) {
     verifyOwner: mnemonic =>
       verifyOwner(info.ownerCheck, info.network, mnemonic),
 
+    buildReturnUrl: ({ data, returnScheme, variant }) => {
+      const getReturnScheme = () => {
+        if (variant.toLowerCase() === "p2p") {
+          return returnScheme.toUpperCase();
+        }
+        return returnScheme;
+      };
+
+      return `${getReturnScheme()}://${info.type.toUpperCase()}/${data}`;
+    },
+
     // pub
     getPublicKey: mnemonic =>
       createPublicKeysFromDerivationPaths(
@@ -697,6 +714,11 @@ module.exports = function(coinIdData) {
     // swp
     parseSweepData: (data, password, statusCb) =>
       parseSweepData(data, password, statusCb, info.network),
+
+    getSweepReturnData: ({ addresses, compressed }) =>
+      addresses
+        .map(e => `${e.type}*${e.address}*${compressed ? "1" : "0"}`)
+        .join("+"),
 
     // swptx
     createSweepTx: (mnemonic, { wif }) => {
@@ -764,6 +786,10 @@ module.exports = function(coinIdData) {
         if (info.type === "sah") {
           // simple auth skips ownercheck...
           return resolve(info.message);
+        }
+
+        if (info.type === "swp") {
+          return resolve(this.getSweepReturnData(extraData));
         }
 
         if (this.verifyOwner(mnemonic)) {
