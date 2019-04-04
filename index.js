@@ -462,7 +462,7 @@ const signMessage = function(message, derivationPath, network, mnemonic) {
     message,
     privateKey,
     hdNode.keyPair.compressed,
-    network.messagePrefix
+    network
   );
 
   return signature.toString("base64");
