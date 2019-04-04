@@ -20,7 +20,7 @@
     "bip38-async": "https://github.com/COINiD/bip38-async",
     "bip39": "^2.4.0",
     "bitcoinjs-lib": "https://github.com/wlc-/bitcoinjs-lib",
-    "bitcoinjs-message": "^2.0.0",
+    "bitcoinjs-message": "https://github.com/COINiD/bitcoinjs-message.git#coinid-version",
     "coinid-address-types": "https://github.com/wlc-/coinid-address-types.git",
     "md5": "^2.2.1"
   }
