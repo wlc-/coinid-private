@@ -19,6 +19,7 @@ const wif = require("wif");
 
 const supportedNetworks = {
   xmy: bitcoin.networks.myriad,
+  ltc: bitcoin.networks.litecoin,
   btc: bitcoin.networks.bitcoin,
   tbtc: bitcoin.networks.testnet,
   grs: bitcoin.networks.groestlcoin,
