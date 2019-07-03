@@ -622,6 +622,7 @@ const parseSweepDataQs = function(qs) {
   }
 
   return {
+    ...parseQsParamFromUrl("network", qs),
     ...parseQsParamFromUrl("message", qs),
     ...parseQsParamFromUrl("hint", qs),
     ...parseQsParamFromUrl("address", qs)
@@ -640,6 +641,12 @@ const parseSweepDataInfo = function(sweepData) {
 
 const parseSweepData = async function(sweepData, password, statusCb, network) {
   const { params, keyData } = parseSweepDataInfo(sweepData);
+
+  if (params.network && params.network !== network.qrScheme) {
+    throw Error(
+      "You can only sweep this key using a " + params.network + " wallet"
+    );
+  }
 
   const { decryptedWif, encryptedWif, compressed } = await parseSweepKeyData(
     keyData,
