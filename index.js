@@ -85,17 +85,17 @@ const verifyOwner = function(ownerCheck, network, mnemonic) {
 };
 
 var verifyChangeOutputs = function(changeOutputs, changeDerivationPathArr, network, mnemonic) {
+  // allows older wallets to skip check... temporary until people have upgraded enough to the latest version...
+  if(!changeDerivationPathArr) {
+    return true;
+  }
+
   if(changeOutputs.length !== changeDerivationPathArr.length) {
     throw('Could not verify derivation path');
   }
 
   if(changeOutputs.length === 0) {
     // nothing to verify
-    return true;
-  }
-
-  // allows older wallets to skip check... temporary until people have upgraded enough to the latest version...
-  if(changeDerivationPathArr.length === 0) {
     return true;
   }
 
@@ -113,7 +113,7 @@ var verifyChangeOutputs = function(changeOutputs, changeDerivationPathArr, netwo
   const notOwnedAddresses = changeAddresses.filter(address => ownedAddresses.indexOf(address) === -1);
 
   if(notOwnedAddresses.length > 0) {
-    throw('Change address not created from this COINiD');
+    throw('Change address not created from this COINiD Vault!');
   }
 
   return true;
@@ -291,7 +291,7 @@ const infoFromCoinId = function(coinIdData) {
     };
 
     if(type == 'tx') {
-      if( arr.length === 6 ) {
+      if( arr.length === 6) {
         return Object.assign(head, {
           inputDerivationPathArr: parseInputDerivationData(arr[2]),
           txHex: arr[3],
@@ -300,8 +300,7 @@ const infoFromCoinId = function(coinIdData) {
         });
       }
 
-      // Field extension
-      if( arr.length === 7 ) {
+      if(arr.length === 7) {
         return Object.assign(head, {
           inputDerivationPathArr: parseInputDerivationData(arr[2]),
           txHex: arr[3],
@@ -350,6 +349,10 @@ const infoFromCoinId = function(coinIdData) {
         outputInfo: parseSwpTxOutputData(arr[2]),
         inputInfoArr: parseSwpTxInputDataArr(arr[3])
       });
+    }
+
+    if (type == "swp" && arr.length == 3) {
+      return head;
     }
 
     throw 'Incompatible data format. Please upgrade your wallet and vault to the latest version.';
@@ -669,7 +672,7 @@ const parseSweepDataQs = function(qs) {
   }
 
   return {
-    ...parseQsParamFromUrl("network", qs),
+    ...parseQsParamFromUrl("ticker", qs),
     ...parseQsParamFromUrl("message", qs),
     ...parseQsParamFromUrl("hint", qs),
     ...parseQsParamFromUrl("address", qs)
@@ -689,10 +692,20 @@ const parseSweepDataInfo = function(sweepData) {
 const parseSweepData = async function(sweepData, password, statusCb, network) {
   const { params, keyData } = parseSweepDataInfo(sweepData);
 
-  if (params.network && params.network !== network.qrScheme) {
-    throw Error(
-      "You can only sweep this key using a " + params.network + " wallet"
-    );
+  if (params.ticker) {
+    const privateKeyNetwork = getNetworkFromTicker(params.ticker);
+
+    if(!privateKeyNetwork) {
+      throw Error(
+        "Unsupported network specified for private key"
+      );
+    }
+
+    if(privateKeyNetwork !== network) {
+      throw Error(
+        "You are trying to sweep a " + privateKeyNetwork.title + " private key with a " + network.title + " wallet"
+      );
+    }
   }
 
   const { decryptedWif, encryptedWif, compressed } = await parseSweepKeyData(
