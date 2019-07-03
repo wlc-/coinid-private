@@ -84,6 +84,41 @@ const verifyOwner = function(ownerCheck, network, mnemonic) {
   return true;
 };
 
+var verifyChangeOutputs = function(changeOutputs, changeDerivationPathArr, network, mnemonic) {
+  if(changeOutputs.length !== changeDerivationPathArr.length) {
+    throw('Could not verify derivation path');
+  }
+
+  if(changeOutputs.length === 0) {
+    // nothing to verify
+    return true;
+  }
+
+  // allows older wallets to skip check... temporary until people have upgraded enough to the latest version...
+  if(changeDerivationPathArr.length === 0) {
+    return true;
+  }
+
+  var hdNode = getBaseHDNode(network, mnemonic);
+
+  // fetch derivationpath from changeoutput index because
+  const ownedAddresses = changeOutputs.map((_, i) => {
+    var derivationPath = changeDerivationPathArr[i];
+    var derivedNode = hdNode.derivePath(derivationPath);
+    var derivedAddress = getAddressFunctionFromDerivation(derivationPath)(derivedNode);
+    return derivedAddress;
+  });
+
+  const changeAddresses = changeOutputs.map(({address}) => address);
+  const notOwnedAddresses = changeAddresses.filter(address => ownedAddresses.indexOf(address) === -1);
+
+  if(notOwnedAddresses.length > 0) {
+    throw('Change address not created from this COINiD');
+  }
+
+  return true;
+}
+
 var parseOwnerCheck = function(ownerCheck) {
   const splitData = ownerCheck.split("+");
   const derivationPath = reverseQrFriendlyDerivationPath(splitData[0]);
@@ -255,13 +290,26 @@ const infoFromCoinId = function(coinIdData) {
       ownerCheck: arr[1]
     };
 
-    if (type == "tx" && arr.length == 6) {
-      return Object.assign(head, {
-        inputDerivationPathArr: parseInputDerivationData(arr[2]),
-        txHex: arr[3],
-        changeOutputIndexArr: parseOutputIndexData(arr[4]),
-        inputValueArr: parseInputValueData(arr[5])
-      });
+    if(type == 'tx') {
+      if( arr.length === 6 ) {
+        return Object.assign(head, {
+          inputDerivationPathArr: parseInputDerivationData(arr[2]),
+          txHex: arr[3],
+          changeOutputIndexArr: parseOutputIndexData(arr[4]),
+          inputValueArr: parseInputValueData(arr[5]),
+        });
+      }
+
+      // Field extension
+      if( arr.length === 7 ) {
+        return Object.assign(head, {
+          inputDerivationPathArr: parseInputDerivationData(arr[2]),
+          txHex: arr[3],
+          changeOutputIndexArr: parseOutputIndexData(arr[4]),
+          inputValueArr: parseInputValueData(arr[5]),
+          changeDerivationPathArr: parseInputDerivationData(arr[6]),
+        });
+      }
     }
 
     if (type == "pub" && arr.length == 3) {
@@ -304,11 +352,10 @@ const infoFromCoinId = function(coinIdData) {
       });
     }
 
-    return head;
+    throw 'Incompatible data format. Please upgrade your wallet and vault to the latest version.';
   };
 
   const parsedData = parse(coinIdData);
-
   return parsedData;
 };
 
@@ -682,6 +729,7 @@ module.exports = function(coinIdData) {
     getBasePublicKey: mnemonic => getBasePublicKey(info.network, mnemonic),
     verifyOwner: mnemonic =>
       verifyOwner(info.ownerCheck, info.network, mnemonic),
+    verifyChangeOutputs: (changeOutputs, mnemonic) => verifyChangeOutputs(changeOutputs, info.changeDerivationPathArr, info.network, mnemonic),
 
     buildReturnUrl: ({ data, returnScheme, variant }) => {
       const getReturnScheme = () => {
@@ -802,8 +850,12 @@ module.exports = function(coinIdData) {
 
         if (this.verifyOwner(mnemonic)) {
           switch (info.type) {
-            case "tx":
-              return resolve(this.signTx(mnemonic));
+            case 'tx':
+              var txInfo = this.getTxInfo(info);
+              if(this.verifyChangeOutputs(txInfo.changeOutputs, mnemonic)) {
+                return resolve(this.signTx(mnemonic));
+              }
+            break;
             case "swptx":
               return resolve(this.createSweepTx(mnemonic, extraData));
             case "val":
